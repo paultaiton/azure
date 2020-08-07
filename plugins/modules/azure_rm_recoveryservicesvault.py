@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2019 Yuwei Zhou, <yuwzho@microsoft.com>
+# Copyright (c) 2019 Paul Aiton, <@paultaiton>
 #
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -25,40 +25,23 @@ description:
 options:
     name:
         description:
-            - Name of the lock.
+            - Name of the Recovery Services vault.
         type: str
         required: true
-    managed_resource_id:
-        description:
-            - Manage a lock for the specified resource ID.
-            - Mutually exclusive with I(resource_group).
-            - If neither I(managed_resource_id) or I(resource_group) are specified, manage a lock for the current subscription.
-            - "'/subscriptions/{subscriptionId}' for subscriptions."
-            - "'/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}' for resource groups."
-            - "'/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{namespace}/{resourceType}/{resourceName}' for resources."
-        type: str
     resource_group:
         description:
-            - Manage a lock for the named resource group.
-            - Mutually exclusive with I(managed_resource_id).
-            - If neither I(managed_resource_id) or I(resource_group) are specified, manage a lock for the current subscription.
+            - Name of the resource group to use.
+        required: true
         type: str
     state:
         description:
-            - State of the lock.
-            - Use C(present) to create or update a lock and C(absent) to delete a lock.
+            - State of the vault
+            - Use C(present) to create or update a vault and C(absent) to delete a vault.
         type: str
         default: present
         choices:
             - absent
             - present
-    level:
-        description:
-            - The lock level type.
-        type: str
-        choices:
-            - can_not_delete
-            - read_only
 extends_documentation_fragment:
     - azure.azcollection.azure
 
@@ -68,38 +51,10 @@ author:
 '''
 
 EXAMPLES = '''
-- name: Create a lock for a resource
-  azure_rm_lock:
-      managed_resource_id: /subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourcegroups/myResourceGroup/providers/Microsoft.Compute/virtualMachines/myVM
-      name: myLock
-      level: read_only
-
-- name: Create a lock for a resource group
-  azure_rm_lock:
-      managed_resource_id: /subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourcegroups/myResourceGroup
-      name: myLock
-      level: read_only
-
-- name: Create a lock for a resource group
-  azure_rm_lock:
-      resource_group: myResourceGroup
-      name: myLock
-      level: read_only
-
-- name: Create a lock for a subscription
-  azure_rm_lock:
-      name: myLock
-      level: read_only
 '''
 
 RETURN = '''
-id:
-    description:
-        - Resource ID of the lock.
-    returned: success
-    type: str
-    sample: "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/myResourceGroup/providers/Microsoft.Authorization/locks/keep"
-'''  # NOQA
+'''
 
 from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 try:
@@ -109,16 +64,14 @@ except ImportError:
     pass
 
 
-class AzureRMLock(AzureRMModuleBase):
+class AzureRMRecoveryServicesVault(AzureRMModuleBase):
 
     def __init__(self):
 
         self.module_arg_spec = dict(
             name=dict(type='str', required=True),
             state=dict(type='str', default='present', choices=['present', 'absent']),
-            resource_group=dict(type='str'),
-            managed_resource_id=dict(type='str'),
-            level=dict(type='str', choices=['can_not_delete', 'read_only'])
+            resource_group=dict(type='str')
         )
 
         self.results = dict(
@@ -127,7 +80,7 @@ class AzureRMLock(AzureRMModuleBase):
         )
 
         required_if = [
-            ('state', 'present', ['level'])
+            ('state', 'present' )
         ]
 
         mutually_exclusive = [['resource_group', 'managed_resource_id']]
@@ -138,11 +91,11 @@ class AzureRMLock(AzureRMModuleBase):
         self.resource_group = None
         self.managed_resource_id = None
 
-        super(AzureRMLock, self).__init__(self.module_arg_spec,
+        super(AzureRMRecoveryServicesVault, self).__init__(self.module_arg_spec,
                                           supports_check_mode=True,
                                           required_if=required_if,
                                           mutually_exclusive=mutually_exclusive,
-                                          supports_tags=False)
+                                          supports_tags=True)
 
     def exec_module(self, **kwargs):
 
@@ -208,7 +161,7 @@ class AzureRMLock(AzureRMModuleBase):
 
 
 def main():
-    AzureRMLock()
+    AzureRMRecoveryServicesVault()
 
 
 if __name__ == '__main__':
