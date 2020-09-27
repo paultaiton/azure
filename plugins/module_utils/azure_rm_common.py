@@ -97,6 +97,7 @@ AZURE_API_PROFILES = {
         'NetworkManagementClient': '2019-06-01',
         'ResourceManagementClient': '2017-05-10',
         'StorageManagementClient': '2019-06-01',
+        'SubscriptionManagementClient': '2020-01-01',
         'WebSiteManagementClient': '2018-02-01',
         'PostgreSQLManagementClient': '2017-12-01',
         'MySQLManagementClient': '2017-12-01',
@@ -232,6 +233,7 @@ try:
     from azure.mgmt.network import NetworkManagementClient
     from azure.mgmt.resource.resources import ResourceManagementClient
     from azure.mgmt.resource.subscriptions import SubscriptionClient
+    from azure.mgmt.subscription import SubscriptionClient
     from azure.mgmt.storage import StorageManagementClient
     from azure.mgmt.compute import ComputeManagementClient
     from azure.mgmt.dns import DnsManagementClient
