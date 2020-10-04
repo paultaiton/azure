@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2020 Paul Aiton, < paultaiton >
+# Copyright (c) 2020 Paul Aiton, < @paultaiton >
 #
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -25,9 +25,15 @@ description:
     - Get facts for a specific subscription or all subscriptions.
 
 options:
-    name:
+    subscription_id:
         description:
-            - Limit results to a specific subscription.
+            - Limit results to a specific subscription by id.
+    subscription_name:
+        description:
+            - Limit results to a specific subscription by name.
+    all:
+        description:
+            - If true, will show all subscriptions, false will omit disabled subscriptions.
 
 extends_documentation_fragment:
     - azure.azcollection.azure
@@ -37,6 +43,10 @@ author:
 '''
 
 EXAMPLES = '''
+    - name: Get facts for one subscription
+      azure_rm_subscription_info:
+        id: 00000000-0000-0000-0000-000000000000
+
     - name: Get facts for one subscription
       azure_rm_subscription_info:
         name: mySubscription
