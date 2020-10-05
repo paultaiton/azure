@@ -28,12 +28,20 @@ options:
     subscription_id:
         description:
             - Limit results to a specific subscription by id.
-    subscription_name:
+            - Cannot be used together with name.
+        aliases:
+            - id
+    name:
         description:
             - Limit results to a specific subscription by name.
+            - Cannot be used together with id.
+        aliases:
+            - subscription_name
     all:
         description:
-            - If true, will show all subscriptions, false will omit disabled subscriptions.
+            - If true, will show all subscriptions.
+            - If false will omit disabled subscriptions (default).
+        default: False
 
 extends_documentation_fragment:
     - azure.azcollection.azure
@@ -63,17 +71,35 @@ subscriptions:
     type: list
     contains:
         id:
-            description:
-                - subscription id.
+            description: Subscription fully qualified id.
             returned: always
             type: str
-            sample: "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/"
-        name:
-            description:
-                - Subscription name.
+            sample: "/subscriptions/00000000-0000-0000-0000-000000000000"
+        subscription_id:
+            description: Subscription guid.
+            returned: always
+            type: str
+            sample: "00000000-0000-0000-0000-000000000000"
+        state:
+            description: Subscription state.
+            returned: always
+            type: str
+            sample: "'Enabled' or 'Disabled'"
+        display_name:
+            description: Subscription display name.
             returned: always
             type: str
             sample: foo
+        tags:
+            description: Tags assigned to resource group.
+            returned: always
+            type: dict
+            sample: { "tag1": "value1", "tag2": "value2" }
+        tenant_id:
+            description: Subscription tenant id
+            returned: always
+            type: str
+            sample: "00000000-0000-0000-0000-000000000000"
 '''
 
 try:
@@ -94,6 +120,8 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
 
         self.module_arg_spec = dict(
             name=dict(type='str'),
+            subscription_id=dict(type='str'),
+            all=dict(type='bool')
         )
 
         self.results = dict(
@@ -102,41 +130,31 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
         )
 
         self.name = None
+        self.subscription_id = None
+        self.all = False
 
         super(AzureRMSubscriptionInfo, self).__init__(self.module_arg_spec,
                                                        supports_tags=False,
                                                        facts_module=True)
 
     def exec_module(self, **kwargs):
-        is_old_facts = self.module._name == 'azure_rm_resourcegroup_facts'
-        if is_old_facts:
-            self.module.deprecate("The 'azure_rm_resourcegroup_facts' module has been renamed to 'azure_rm_resourcegroup_info'", version=(2.9, ))
-
         for key in self.module_arg_spec:
             setattr(self, key, kwargs[key])
 
-        if self.name:
+        if self.subscription_id:
             result = self.get_item()
         else:
             result = self.list_items()
 
-        if self.list_resources:
-            for item in result:
-                item['resources'] = self.list_by_rg(item['name'])
-
-        if is_old_facts:
-            self.results['ansible_facts']['azure_resourcegroups'] = result
-        self.results['resourcegroups'] = result
-
         return self.results
 
     def get_item(self):
-        self.log('Get properties for {0}'.format(self.name))
+        self.log('Get properties for {0}'.format(self.subscription_id))
         item = None
         result = []
 
         try:
-            item = self.rm_client.resource_groups.get(self.name)
+            item = self.rm_client.subscription_client.get(self.subscription_id)
         except CloudError:
             pass
 
@@ -148,7 +166,7 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
     def list_items(self):
         self.log('List all items')
         try:
-            response = self.rm_client.resource_groups.list()
+            response = self.rm_client.subscription_client.list()
         except CloudError as exc:
             self.fail("Failed to list all items - {0}".format(str(exc)))
 
@@ -158,23 +176,8 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
                 results.append(self.serialize_obj(item, AZURE_OBJECT_CLASS))
         return results
 
-    def list_by_rg(self, name):
-        self.log('List resources under resource group')
-        results = []
-        try:
-            response = self.rm_client.resources.list_by_resource_group(name)
-            while True:
-                results.append(response.next().as_dict())
-        except StopIteration:
-            pass
-        except CloudError as exc:
-            self.fail('Error when listing resources under resource group {0}: {1}'.format(name, exc.message or str(exc)))
-        return results
-
-
 def main():
     AzureRMSubscriptionInfo()
-
 
 if __name__ == '__main__':
     main()
