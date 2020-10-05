@@ -25,7 +25,7 @@ description:
     - Get facts for a specific subscription or all subscriptions.
 
 options:
-    subscription_id:
+    id:
         description:
             - Limit results to a specific subscription by id.
             - Cannot be used together with name.
@@ -120,7 +120,7 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
 
         self.module_arg_spec = dict(
             name=dict(type='str'),
-            subscription_id=dict(type='str'),
+            id=dict(type='str'),
             all=dict(type='bool')
         )
 
@@ -130,7 +130,7 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
         )
 
         self.name = None
-        self.subscription_id = None
+        self.id = None
         self.all = False
 
         super(AzureRMSubscriptionInfo, self).__init__(self.module_arg_spec,
@@ -141,7 +141,7 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
         for key in self.module_arg_spec:
             setattr(self, key, kwargs[key])
 
-        if self.subscription_id:
+        if self.id:
             result = self.get_item()
         else:
             result = self.list_items()
@@ -149,12 +149,12 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
         return self.results
 
     def get_item(self):
-        self.log('Get properties for {0}'.format(self.subscription_id))
+        self.log('Get properties for {0}'.format(self.id))
         item = None
         result = []
 
         try:
-            item = self.rm_client.subscription_client.get(self.subscription_id)
+            item = self.rm_client.subscription_client.get(self.id)
         except CloudError:
             pass
 
