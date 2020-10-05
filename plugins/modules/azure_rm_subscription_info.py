@@ -29,8 +29,6 @@ options:
         description:
             - Limit results to a specific subscription by id.
             - Cannot be used together with name.
-        aliases:
-            - id
     name:
         description:
             - Limit results to a specific subscription by name.
@@ -39,8 +37,9 @@ options:
             - subscription_name
     all:
         description:
-            - If true, will show all subscriptions.
+            - If true, will return all subscriptions.
             - If false will omit disabled subscriptions (default).
+            - Option has no effect when searching by id or name.
         default: False
 
 extends_documentation_fragment:
@@ -51,16 +50,17 @@ author:
 '''
 
 EXAMPLES = '''
-    - name: Get facts for one subscription
-      azure_rm_subscription_info:
-        id: 00000000-0000-0000-0000-000000000000
+- name: Get facts for one subscription by id
+  azure_rm_subscription_info:
+    id: 00000000-0000-0000-0000-000000000000
 
-    - name: Get facts for one subscription
-      azure_rm_subscription_info:
-        name: mySubscription
+- name: Get facts for one subscription by name
+  azure_rm_subscription_info:
+    name: "my-subscription"
 
-    - name: Get facts for all subscriptions
-      azure_rm_subscription_info:
+- name: Get facts for all subscriptions, including ones that are disabled.
+  azure_rm_subscription_info:
+    all: True
 '''
 
 RETURN = '''
@@ -70,7 +70,12 @@ subscriptions:
     returned: always
     type: list
     contains:
-        id:
+        display_name:
+            description: Subscription display name.
+            returned: always
+            type: str
+            sample: my-subscription
+        fqid:
             description: Subscription fully qualified id.
             returned: always
             type: str
@@ -85,11 +90,6 @@ subscriptions:
             returned: always
             type: str
             sample: "'Enabled' or 'Disabled'"
-        display_name:
-            description: Subscription display name.
-            returned: always
-            type: str
-            sample: foo
         tags:
             description: Tags assigned to resource group.
             returned: always
@@ -141,11 +141,17 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
         for key in self.module_arg_spec:
             setattr(self, key, kwargs[key])
 
+        if self.id and self.name:
+            self.fail("Parameter error: cannot search subscriptions by both name and id.")
+
+        result = []
+
         if self.id:
             result = self.get_item()
         else:
             result = self.list_items()
 
+        self.results['subscriptions'] = result
         return self.results
 
     def get_item(self):
@@ -154,27 +160,41 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
         result = []
 
         try:
-            item = self.rm_client.subscription_client.get(self.id)
+            item = self.subscription_client.subscriptions.get(self.id)
         except CloudError:
             pass
 
-        if item and self.has_tags(item.tags, self.tags):
-            result = [self.serialize_obj(item, AZURE_OBJECT_CLASS)]
+        result = self.to_dict(item)
 
         return result
 
     def list_items(self):
         self.log('List all items')
         try:
-            response = self.rm_client.subscription_client.list()
+            response = self.subscription_client.subscriptions.list()
         except CloudError as exc:
             self.fail("Failed to list all items - {0}".format(str(exc)))
 
         results = []
         for item in response:
-            if self.has_tags(item.tags, self.tags):
-                results.append(self.serialize_obj(item, AZURE_OBJECT_CLASS))
+            # If the name matches, return result regardless of anything else.
+            # If name is not defined and either state is Enabled or all is true, return result.
+            if ( self.name and self.name.lower() == item.display_name.lower() ):
+                results.append(self.to_dict(item) )
+            elif ( not self.name and ( self.all or item.state == "Enabled" ) ):
+                results.append(self.to_dict(item) )
+
         return results
+
+    def to_dict(self, subscription_object):
+        return dict(
+            display_name=subscription_object.display_name,
+            fqid=subscription_object.id,
+            state=subscription_object.state,
+            subscription_id=subscription_object.subscription_id,
+            tags=subscription_object.tags,
+            tenant_id=subscription_object.tenant_id
+        )
 
 def main():
     AzureRMSubscriptionInfo()
