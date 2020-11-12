@@ -1,4 +1,3 @@
-# paultaiton.azcollection Ansible collection for Azure
-DO NOT USE THIS.
-This fork / branch is specifically intended for my own personal use for testing before I push changes upstream to azure.azcollection project, and is in no way intended for general consumption.
-
+# Ansible collection for Azure
+DO NOT USE THIS COLLECTION IF YOU ARE NOT Paul Aiton.
+It is for my own personal testing only, and you should use the upstream that I forked from, azure/azcollection.
