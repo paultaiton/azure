@@ -157,8 +157,8 @@ options:
           - present
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Yunge Zhu(@yungezz)
@@ -221,7 +221,7 @@ host_name:
 import time
 
 try:
-    from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+    from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
     from msrestazure.azure_exceptions import CloudError
     from msrestazure.azure_operation import AzureOperationPoller
     from msrest.polling import LROPoller

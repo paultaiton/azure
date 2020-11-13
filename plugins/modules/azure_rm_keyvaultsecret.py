@@ -41,8 +41,8 @@ options:
             - present
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Ian Philpot (@iphilpot)
@@ -80,7 +80,7 @@ state:
           example: https://contoso.vault.azure.net/secrets/hello/e924f053839f4431b35bc54393f98423
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
     from azure.keyvault import KeyVaultClient, KeyVaultAuthentication, KeyVaultId

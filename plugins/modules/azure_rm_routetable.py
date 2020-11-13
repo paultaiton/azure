@@ -47,8 +47,8 @@ options:
             - Derived from I(resource_group) if not specified.
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Yuwei Zhou (@yuwzho)
@@ -91,7 +91,7 @@ except ImportError:
     # This is handled in azure_rm_common
     pass
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, normalize_location_name
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, normalize_location_name
 
 
 class AzureRMRouteTable(AzureRMModuleBase):

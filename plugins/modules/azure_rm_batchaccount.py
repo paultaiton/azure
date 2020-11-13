@@ -80,8 +80,8 @@ options:
             - absent
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Junyi Yi (@JunyiYi)
@@ -114,8 +114,8 @@ account_endpoint:
 '''
 
 import time
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import normalize_location_name
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import normalize_location_name
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
 from ansible.module_utils.common.dict_transformations import _snake_to_camel
 
 try:

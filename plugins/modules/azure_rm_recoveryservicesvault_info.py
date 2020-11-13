@@ -30,8 +30,8 @@ options:
         required: true
         type: str
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 author:
     - Suyeb Ansari (@suyeb786)
 '''
@@ -99,8 +99,8 @@ response:
             sample: "Microsoft.RecoveryServices/vaults"
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_rest import GenericRestClient
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_rest import GenericRestClient
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
 import re
 import json
 import time

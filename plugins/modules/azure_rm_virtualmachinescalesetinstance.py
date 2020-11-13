@@ -62,7 +62,7 @@ options:
             - present
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Zim Kalinowski (@zikalino)
@@ -100,7 +100,7 @@ instances:
             sample: /subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/TestGroup/providers/Microsoft.Compute/scalesets/myscaleset/vms/myvm
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
     from msrestazure.azure_exceptions import CloudError

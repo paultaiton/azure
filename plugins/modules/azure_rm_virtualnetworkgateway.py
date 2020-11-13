@@ -114,8 +114,8 @@ options:
                 required: True
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Madhura Naniwadekar (@Madhura-CSI)
@@ -174,7 +174,7 @@ except ImportError:
     # This is handled in azure_rm_common
     pass
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, CIDR_PATTERN
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, CIDR_PATTERN
 from ansible.module_utils.common.dict_transformations import _snake_to_camel
 
 

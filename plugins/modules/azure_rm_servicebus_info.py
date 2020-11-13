@@ -59,7 +59,7 @@ options:
             - Note if enable this option, the facts module will raise two more HTTP call for each resources, need more network overhead.
         type: bool
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Yuwei Zhou (@yuwzho)
@@ -378,7 +378,7 @@ servicebuses:
 '''
 
 try:
-    from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, azure_id_to_dict
+    from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, azure_id_to_dict
     from msrestazure.azure_exceptions import CloudError
 except Exception:
     # This is handled in azure_rm_common

@@ -44,7 +44,7 @@ options:
             - nested_endpoints
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Hai Cao (@caohai)
@@ -143,7 +143,7 @@ endpoints:
                 ]
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 from ansible.module_utils.common.dict_transformations import (
     _snake_to_camel, _camel_to_snake
 )

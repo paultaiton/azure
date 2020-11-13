@@ -250,8 +250,8 @@ options:
             - in range between 5 and 15
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Sertac Ozercan (@sozercan)
@@ -478,7 +478,7 @@ except ImportError:
     # This is handled in azure_rm_common
     pass
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, azure_id_to_dict, format_resource_id
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, azure_id_to_dict, format_resource_id
 from ansible.module_utils.basic import to_native, to_bytes
 
 

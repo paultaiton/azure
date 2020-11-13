@@ -59,8 +59,8 @@ options:
             - List the top n devices in the query.
         type: int
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Yuwei Zhou (@yuwzho)
@@ -177,7 +177,7 @@ iot_devices:
 
 import json
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, format_resource_id
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, format_resource_id
 from ansible.module_utils.common.dict_transformations import _snake_to_camel, _camel_to_snake
 
 try:

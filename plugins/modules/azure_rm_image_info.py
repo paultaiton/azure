@@ -33,7 +33,7 @@ options:
             - List of tags to be matched.
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Madhura Naniwadekar (@Madhura-CSI)
@@ -173,7 +173,7 @@ except Exception:
     # This is handled in azure_rm_common
     pass
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 
 AZURE_ENUM_MODULES = ['azure.mgmt.compute.models']

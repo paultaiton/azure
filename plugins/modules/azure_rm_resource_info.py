@@ -58,7 +58,7 @@ options:
                     - Subresource name.
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Zim Kalinowski (@zikalino)
@@ -278,8 +278,8 @@ response:
             sample: "Microsoft.Compute/virtualMachines"
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_rest import GenericRestClient
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_rest import GenericRestClient
 
 try:
     from msrestazure.azure_exceptions import CloudError

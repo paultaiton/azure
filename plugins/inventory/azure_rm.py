@@ -9,8 +9,8 @@ DOCUMENTATION = r'''
     plugin_type: inventory
     short_description: Azure Resource Manager inventory plugin
     extends_documentation_fragment:
-      - azure.azcollection.azure
-      - azure.azcollection.azure_rm
+      - paultaiton.azcollection.azure
+      - paultaiton.azcollection.azure_rm
     description:
         - Query VM details from Azure Resource Manager
         - Requires a YAML configuration file whose name ends with 'azure_rm.(yml|yaml)'
@@ -43,7 +43,7 @@ EXAMPLES = '''
 # sample 'myazuresub.azure_rm.yaml'
 
 # required for all azure_rm inventory plugin configs
-plugin: azure.azcollection.azure_rm
+plugin: paultaiton.azcollection.azure_rm
 
 # forces this plugin to use a CLI auth session instead of the automatic auth source selection (eg, prevents the
 # presence of 'ANSIBLE_AZURE_RM_X' environment variables from overriding CLI auth)
@@ -121,7 +121,7 @@ from collections import namedtuple
 from ansible import release
 from ansible.plugins.inventory import BaseInventoryPlugin, Constructable
 from ansible.module_utils.six import iteritems
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMAuth
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMAuth
 from ansible.errors import AnsibleParserError, AnsibleError
 from ansible.module_utils.parsing.convert_bool import boolean
 from ansible.module_utils._text import to_native, to_bytes, to_text
@@ -156,7 +156,7 @@ UrlAction = namedtuple('UrlAction', ['url', 'api_version', 'handler', 'handler_a
 # FUTURE: add Cacheable support once we have a sane serialization format
 class InventoryModule(BaseInventoryPlugin, Constructable):
 
-    NAME = 'azure.azcollection.azure_rm'
+    NAME = 'paultaiton.azcollection.azure_rm'
 
     def __init__(self):
         super(InventoryModule, self).__init__()

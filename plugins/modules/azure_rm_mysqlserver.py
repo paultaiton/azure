@@ -86,8 +86,8 @@ options:
             - present
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Zim Kalinowski (@zikalino)
@@ -140,7 +140,7 @@ fully_qualified_domain_name:
 import time
 
 try:
-    from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+    from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
     from azure.mgmt.rdbms.mysql import MySQLManagementClient
     from msrestazure.azure_exceptions import CloudError
     from msrest.polling import LROPoller

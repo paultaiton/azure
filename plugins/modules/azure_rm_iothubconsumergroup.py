@@ -49,8 +49,8 @@ options:
             - Name of the consumer group.
         type: str
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Yuwei Zhou (@yuwzho)
@@ -81,7 +81,7 @@ name:
     type: str
 '''  # NOQA
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, format_resource_id
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, format_resource_id
 from ansible.module_utils.common.dict_transformations import _snake_to_camel, _camel_to_snake
 import re
 

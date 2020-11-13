@@ -51,7 +51,7 @@ options:
         type: list
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Paul Aiton (@paultaiton)
@@ -122,7 +122,7 @@ except Exception:
     # This is handled in azure_rm_common
     pass
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 
 AZURE_OBJECT_CLASS = 'Subscription'

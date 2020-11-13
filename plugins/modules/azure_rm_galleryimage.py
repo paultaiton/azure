@@ -169,8 +169,8 @@ options:
             - present
         type: str
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 author:
   - Zim Kalinowski (@zikalino)
 
@@ -204,8 +204,8 @@ id:
 import time
 import json
 import re
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_rest import GenericRestClient
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_rest import GenericRestClient
 from copy import deepcopy
 try:
     from msrestazure.azure_exceptions import CloudError

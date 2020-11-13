@@ -90,8 +90,8 @@ options:
                     - Primary data value for all record types.
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Obezimnaka Boms (@ozboms)
@@ -243,7 +243,7 @@ import sys
 
 from ansible.module_utils.basic import _load_params
 from ansible.module_utils.six import iteritems
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, HAS_AZURE
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, HAS_AZURE
 
 try:
     from msrestazure.azure_exceptions import CloudError

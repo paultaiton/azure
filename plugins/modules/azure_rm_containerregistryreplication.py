@@ -42,7 +42,7 @@ options:
             - Resource location. If not set, location from the resource group will be used as default.
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - "Zim Kalinowski (@zikalino)"
@@ -76,7 +76,7 @@ status:
 '''
 
 import time
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
     from msrestazure.azure_exceptions import CloudError

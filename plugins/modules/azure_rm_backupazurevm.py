@@ -60,8 +60,8 @@ options:
             - stop
             - backup
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 author:
     - Suyeb Ansari (@suyeb786)
     - Pallavi Chaudhari (@PallaviC2510)
@@ -114,8 +114,8 @@ id:
     sample: '{"response":{"id":"protection_id","name":"protection_item_name","properties":{}}}'
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_rest import GenericRestClient
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_rest import GenericRestClient
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
 import re
 import json
 import time

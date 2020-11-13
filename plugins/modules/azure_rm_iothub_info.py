@@ -66,7 +66,7 @@ options:
             - Note this will have network overhead for each IoT Hub.
         type: bool
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Yuwei Zhou (@yuwzho)
@@ -395,7 +395,7 @@ azure_iothubs:
             sample: { 'key1': 'value1' }
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 from ansible.module_utils.common.dict_transformations import _camel_to_snake
 
 try:

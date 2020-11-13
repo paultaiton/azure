@@ -103,8 +103,8 @@ options:
             path: /
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Hai Cao (@caohai)
@@ -155,7 +155,7 @@ endpoints:
              nalEndpoints/e1"
             ]
 '''
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, normalize_location_name
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, normalize_location_name
 
 try:
     from msrestazure.azure_exceptions import CloudError

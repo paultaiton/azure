@@ -91,7 +91,7 @@ options:
             - present
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Hai Cao (@caohai)
@@ -122,7 +122,7 @@ id:
         "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/myResourceGroup/providers/Microsoft.Network/trafficManagerProfiles/testProfil
         e/externalEndpoints/testendpoint"
 '''
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, normalize_location_name
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, normalize_location_name
 from ansible.module_utils.common.dict_transformations import _snake_to_camel
 
 try:

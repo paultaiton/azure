@@ -187,8 +187,8 @@ options:
                 required: true
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Chris Houseknecht (@chouseknecht)
@@ -413,7 +413,7 @@ except ImportError:
     pass
 
 import copy
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AZURE_SUCCESS_STATE, AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AZURE_SUCCESS_STATE, AzureRMModuleBase
 from ansible.module_utils._text import to_native
 
 cors_rule_spec = dict(

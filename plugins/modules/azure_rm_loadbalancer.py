@@ -340,8 +340,8 @@ options:
             - (deprecated) The protocol for the NAT pool.
             - This option has been deprecated, and will be removed in 2.9. Use I(inbound_nat_pools) instead.
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Thomas Stringer (@trstringer)
@@ -397,7 +397,7 @@ changed:
 '''
 
 import random
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, format_resource_id
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, format_resource_id
 from ansible.module_utils._text import to_native
 try:
     from msrestazure.tools import parse_resource_id

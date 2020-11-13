@@ -52,7 +52,7 @@ options:
         type: bool
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Yuwei Zhou (@yuwzho)
@@ -238,7 +238,7 @@ automation_accounts:
 
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
     from msrestazure.tools import parse_resource_id

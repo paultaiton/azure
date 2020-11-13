@@ -370,8 +370,8 @@ options:
                 type: str
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Chris Houseknecht (@chouseknecht)
@@ -767,7 +767,7 @@ except ImportError:
     pass
 
 from ansible.module_utils.basic import to_native, to_bytes
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import (AzureRMModuleBase,
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import (AzureRMModuleBase,
                                                                                          azure_id_to_dict,
                                                                                          normalize_location_name,
                                                                                          format_resource_id

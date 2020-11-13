@@ -149,7 +149,7 @@ options:
                 type: list
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Chris Houseknecht (@chouseknecht)
@@ -298,7 +298,7 @@ state:
                     sample: ["Microsoft.Network/virtualNetworks/subnets/action"]
 '''  # NOQA
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, CIDR_PATTERN, azure_id_to_dict, format_resource_id
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, CIDR_PATTERN, azure_id_to_dict, format_resource_id
 
 try:
     from msrestazure.azure_exceptions import CloudError

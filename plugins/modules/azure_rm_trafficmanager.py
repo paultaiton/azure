@@ -146,8 +146,8 @@ options:
                     - The list of countries/regions mapped to this endpoint when using the 'Geographic' traffic routing method.
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - "Hai Cao <t-haicao@microsoft.com>"
@@ -232,7 +232,7 @@ state:
         "traffic_routing_method": "Priority"
         "type": "Microsoft.Network/trafficManagerProfiles"
 '''
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
     from msrestazure.azure_exceptions import CloudError

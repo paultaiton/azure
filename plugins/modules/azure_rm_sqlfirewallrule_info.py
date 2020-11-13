@@ -35,7 +35,7 @@ options:
             - The name of the firewall rule.
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Zim Kalinowski (@zikalino)
@@ -101,7 +101,7 @@ rules:
             sample: 10.0.0.5
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
     from msrestazure.azure_exceptions import CloudError

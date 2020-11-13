@@ -36,7 +36,7 @@ options:
         required: True
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - "Zim Kalinowski (@zikalino)"
@@ -107,7 +107,7 @@ replications:
                             sample: "2017-03-01T23:15:37.0707808Z"
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
     from msrestazure.azure_exceptions import CloudError

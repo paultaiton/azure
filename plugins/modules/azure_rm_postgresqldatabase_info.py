@@ -38,7 +38,7 @@ options:
         type: str
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Zim Kalinowski (@zikalino)
@@ -105,7 +105,7 @@ databases:
 '''
 
 try:
-    from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+    from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
     from msrestazure.azure_exceptions import CloudError
     from azure.mgmt.rdbms.postgresql import PostgreSQLManagementClient
     from msrest.serialization import Model

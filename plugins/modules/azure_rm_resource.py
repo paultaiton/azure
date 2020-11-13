@@ -103,7 +103,7 @@ options:
             - present
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Zim Kalinowski (@zikalino)
@@ -215,8 +215,8 @@ response:
 
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_rest import GenericRestClient
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_rest import GenericRestClient
 from ansible.module_utils.common.dict_transformations import dict_merge
 
 try:
