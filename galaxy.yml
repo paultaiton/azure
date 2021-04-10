@@ -9,7 +9,7 @@ namespace: paultaiton
 name: azcollection
 
 # The version of the collection. Must be compatible with semantic versioning
-version: 1.3.1
+version: 1.5.0
 
 # The path to the Markdown (.md) readme file. This path is relative to the root of the collection
 readme: README.md
@@ -55,3 +55,8 @@ homepage: https://github.com/paultaiton/azure
 
 # The URL to the collection issue tracker
 issues: https://github.com/ansible-collections/azure/issues
+
+build_ignore:
+- 'azure-azcollection-*.tar.gz'
+- 'venv*'
+- '.vscode'
