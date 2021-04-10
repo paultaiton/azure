@@ -46,8 +46,8 @@ options:
             - absent
             - present
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 author:
     - Fred-Sun (@Fred-Sun)
 
@@ -117,7 +117,7 @@ state:
 
 '''
 import uuid
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
 try:
     from msrestazure.azure_exceptions import CloudError
     from azure.mgmt.managedservices import ManagedServicesClient

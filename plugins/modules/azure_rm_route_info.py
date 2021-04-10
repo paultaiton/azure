@@ -31,8 +31,8 @@ options:
             - The name of the route.
         type: str
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 author:
     - GuopengLin (@t-glin)
     - Fred-Sun (@Fred-Sun)
@@ -109,7 +109,7 @@ routes:
 
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBase
 try:
     from msrestazure.azure_exceptions import CloudError
     from azure.mgmt.network import NetworkManagementClient

@@ -106,7 +106,7 @@ options:
             - parent argument.
         type: str
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Cole Neubauer(@coleneubauer)
@@ -134,7 +134,7 @@ EXAMPLES = '''
         schedule_run_time: 14
 
     - name: Create a weekly VM backup policy
-      azure.azcollection.azure_rm_backuppolicy:
+      paultaiton.azcollection.azure_rm_backuppolicy:
         vault_name: Vault_Name
         name: Policy_Name
         resource_group: Resource_Group_Name
@@ -181,7 +181,7 @@ type:
 
 import uuid
 from datetime import datetime
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
     from msrestazure.azure_exceptions import CloudError

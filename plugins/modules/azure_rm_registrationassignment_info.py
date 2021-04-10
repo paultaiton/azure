@@ -26,8 +26,8 @@ options:
             - ID of the registration assignment.
         type: str
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 author:
     - Fred-Sun (@Fred-Sun)
 
@@ -87,7 +87,7 @@ registration_assignments:
             sample: 9b2895ec-fb1e-4a1e-a978-abd9933d6b20
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBase
 try:
     from msrestazure.azure_exceptions import CloudError
     from azure.mgmt.managedservices import ManagedServicesClient

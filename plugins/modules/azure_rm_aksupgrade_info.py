@@ -32,7 +32,7 @@ options:
         type: str
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Andrii Bilorus (@ewscat)
@@ -110,7 +110,7 @@ azure_aks_upgrades:
                     sample: "1.18.1"
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
     from msrestazure.azure_exceptions import CloudError
