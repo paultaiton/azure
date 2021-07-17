@@ -225,7 +225,7 @@ options:
         type: str
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     guopeng_lin (@guopenglin)
@@ -319,7 +319,7 @@ output:
             sample: []
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
 
 try:
     from msrestazure.azure_exceptions import CloudError

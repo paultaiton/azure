@@ -26,7 +26,7 @@ options:
         type: str
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 author:
     - Nikhil Patne (@nikhilpatne)
     - Sakar Mehra (@Sakar97)
@@ -119,8 +119,8 @@ api_management_service:
 
 import time
 import json
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_rest import GenericRestClient
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_rest import GenericRestClient
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBaseExt
 from copy import deepcopy
 try:
     from msrestazure.azure_exceptions import CloudError

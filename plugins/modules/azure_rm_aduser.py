@@ -115,7 +115,7 @@ options:
             - Mutually exclusive with I(object_id), I(attribute_name), and I(user_principal_name).
         type: str
 extends_documentation_fragment:
-    - azure.azcollection.azure
+    - paultaiton.azcollection.azure
 
 author:
     - Cole Neubauer(@coleneubauer)
@@ -199,7 +199,7 @@ user_type:
     sample: Member
 '''
 
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBase
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common_ext import AzureRMModuleBase
 
 try:
     from msrestazure.azure_exceptions import CloudError

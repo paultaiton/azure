@@ -53,8 +53,8 @@ options:
             - present
 
 extends_documentation_fragment:
-    - azure.azcollection.azure
-    - azure.azcollection.azure_tags
+    - paultaiton.azcollection.azure
+    - paultaiton.azcollection.azure_tags
 
 author:
     - Aparna Patil (@techcon65)
@@ -156,7 +156,7 @@ state:
 '''
 
 from ansible.module_utils.basic import _load_params
-from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, HAS_AZURE, \
+from ansible_collections.paultaiton.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase, HAS_AZURE, \
     format_resource_id
 
 try:
