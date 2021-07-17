@@ -58,6 +58,7 @@ issues: https://github.com/ansible-collections/azure/issues
 
 build_ignore:
 - 'azure-azcollection-*.tar.gz'
+- 'paultaiton-azcollection-*.tar.gz'
 - 'venv*'
 - '.vscode'
 - tests
