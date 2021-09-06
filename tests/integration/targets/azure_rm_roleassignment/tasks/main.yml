@@ -112,10 +112,18 @@
     role_definition_id: "/subscriptions/{{ az_resource_group.resourcegroups[0].id.split('/')[2] }}/providers/Microsoft.Authorization/roleDefinitions/{{ az_role_definition_guid }}"
   register: az_role_assignment_idempotent
 
+- name: create role assignment by id
+  azure_rm_roleassignment:
+    id: "{{ az_resource_group.resourcegroups[0].id }}/providers/Microsoft.Authorization/roleAssignments/{{ uuid }}"
+    assignee_object_id: "{{ az_role_assignments.roleassignments[0].principal_id }}"
+    role_definition_id: "/subscriptions/{{ az_resource_group.resourcegroups[0].id.split('/')[2] }}/providers/Microsoft.Authorization/roleDefinitions/{{ az_role_definition_guid }}"
+  register: az_role_assignment_idempotent_two
+
 - name: check idempotence
   assert:
     that:
-      - az_role_assignment_idempotent.changed == False
+      - not az_role_assignment_idempotent.changed
+      - not az_role_assignment_idempotent_two.changed
 
 - name: List Role Assignments by Name
   azure_rm_roleassignment_info:
@@ -155,7 +163,6 @@
     id: "{{ az_role_assignment_create.id }}"
     state: absent
   register: az_role_assignment_delete
-  when: az_role_assignment_create.changed
 
 - name: create role assignment with name
   azure_rm_roleassignment:
@@ -171,7 +178,6 @@
     name: "{{ uuid }}"
     state: absent
   register: az_role_assignment_delete
-  when: az_role_assignment_create.changed
 
 - name: create role assignment by scope
   azure_rm_roleassignment:
@@ -187,7 +193,6 @@
     role_definition_id: "/subscriptions/{{ az_resource_group.resourcegroups[0].id.split('/')[2] }}/providers/Microsoft.Authorization/roleDefinitions/{{ az_role_definition_guid }}"
     state: absent
   register: az_role_assignment_delete
-  when: az_role_assignment_create.changed
 
 - name: absent assignment that doesn't exist - id
   azure.azcollection.azure_rm_roleassignment:
