@@ -153,6 +153,12 @@ options:
                     - List of existing load-balancer backend address pools to associate with the network interface.
                     - Can be written as a resource ID.
                     - Also can be a dict of I(name) and I(load_balancer).
+            application_gateway_backend_address_pools:
+                description:
+                    - List of existing application gateway backend address pools to associate with the network interface.
+                    - Can be written as a resource ID.
+                    - Also can be a dict of I(name) and I(application_gateway).
+                version_added: "1.10.0"
             primary:
                 description:
                     - Whether the IP configuration is the primary one in the list.
@@ -280,6 +286,21 @@ EXAMPLES = '''
               - name: backendaddrpool1
                 load_balancer: loadbalancer001
 
+    - name: Create network interface attached to application gateway backend address pool
+      azure_rm_networkinterface:
+        name: nic-appgw
+        resource_group: myResourceGroup
+        virtual_network: vnet001
+        subnet_name: subnet001
+        create_with_security_group: false
+        public_ip: false
+        ip_configurations:
+          - name: default
+            primary: true
+            application_gateway_backend_address_pools:
+              - name: myApplicationGatewayBackendAddressPool
+                application_gateway: myApplicationGateway
+
     - name: Create a network interface in accelerated networking mode
       azure_rm_networkinterface:
         name: nic005
@@ -374,8 +395,15 @@ state:
                     sample: default
                 load_balancer_backend_address_pools:
                     description:
-                        - List of existing load-balancer backend address pools to associate with the network interface.
+                        - List of existing load-balancer backend address pools associated with the network interface.
                     type: list
+                application_gateway_backend_address_pools:
+                    description:
+                        - List of existing application gateway backend address pool resource IDs associated with the network interface.
+                    type: list
+                    version_added: "1.10.0"
+                    sample: ["/subscriptions/xxx/resourceGroups/myResourceGroup/providers/Microsoft.Network/applicationGateways/myGateway/
+                        backendAddressPools/myBackendAddressPool"]
                 private_ip_address:
                     description:
                         - Private IP address for the IP configuration.
@@ -458,7 +486,7 @@ state:
 
 try:
     from msrestazure.tools import parse_resource_id, resource_id, is_valid_resource_id
-    from msrestazure.azure_exceptions import CloudError
+    from azure.core.exceptions import ResourceNotFoundError
 except ImportError:
     # This is handled in azure_rm_common
     pass
@@ -492,6 +520,8 @@ def nic_to_dict(nic):
             primary=config.primary if config.primary else False,
             load_balancer_backend_address_pools=([item.id for item in config.load_balancer_backend_address_pools]
                                                  if config.load_balancer_backend_address_pools else None),
+            application_gateway_backend_address_pools=([item.id for item in config.application_gateway_backend_address_pools]
+                                                       if config.application_gateway_backend_address_pools else None),
             public_ip_address=dict(
                 id=config.public_ip_address.id,
                 name=azure_id_to_dict(config.public_ip_address.id).get('publicIPAddresses'),
@@ -536,6 +566,7 @@ ip_configuration_spec = dict(
     public_ip_address_name=dict(type='str', aliases=['public_ip_address', 'public_ip_name']),
     public_ip_allocation_method=dict(type='str', choices=['Dynamic', 'Static'], default='Dynamic'),
     load_balancer_backend_address_pools=dict(type='list'),
+    application_gateway_backend_address_pools=dict(type='list'),
     primary=dict(type='bool', default=False),
     application_security_groups=dict(type='list', elements='raw')
 )
@@ -723,14 +754,23 @@ class AzureRMNetworkInterface(AzureRMModuleBase):
                 # name, private_ip_address, public_ip_address_name, private_ip_allocation_method, subnet_name
                 ip_configuration_result = self.construct_ip_configuration_set(results['ip_configurations'])
                 ip_configuration_request = self.construct_ip_configuration_set(self.ip_configurations)
-                if ip_configuration_result != ip_configuration_request:
-                    self.log("CHANGED: network interface {0} ip configurations".format(self.name))
-                    changed = True
+                ip_configuration_result_name = [item['name'] for item in ip_configuration_result]
+                for item_request in ip_configuration_request:
+                    if item_request['name'] not in ip_configuration_result_name:
+                        changed = True
+                        break
+                    else:
+                        for item_result in ip_configuration_result:
+                            if len(ip_configuration_request) == 1 and len(ip_configuration_result) == 1:
+                                item_request['primary'] = True
+                            if item_request['name'] == item_result['name'] and item_request != item_result:
+                                changed = True
+                                break
 
             elif self.state == 'absent':
                 self.log("CHANGED: network interface {0} exists but requested state is 'absent'".format(self.name))
                 changed = True
-        except CloudError:
+        except ResourceNotFoundError:
             self.log('Network interface {0} does not exist'.format(self.name))
             if self.state == 'present':
                 self.log("CHANGED: network interface {0} does not exist but requested state is 'present'".format(self.name))
@@ -762,6 +802,10 @@ class AzureRMNetworkInterface(AzureRMModuleBase):
                         load_balancer_backend_address_pools=([self.network_models.BackendAddressPool(id=self.backend_addr_pool_id(bap_id))
                                                               for bap_id in ip_config.get('load_balancer_backend_address_pools')]
                                                              if ip_config.get('load_balancer_backend_address_pools') else None),
+                        application_gateway_backend_address_pools=([self.network_models.ApplicationGatewayBackendAddressPool
+                                                                    (id=self.gateway_backend_addr_pool_id(bap_id))
+                                                                    for bap_id in ip_config.get('application_gateway_backend_address_pools')]
+                                                                   if ip_config.get('application_gateway_backend_address_pools') else None),
                         primary=ip_config.get('primary'),
                         application_security_groups=([self.network_models.ApplicationSecurityGroup(id=asg_id)
                                                       for asg_id in ip_config.get('application_security_groups')]
@@ -811,15 +855,15 @@ class AzureRMNetworkInterface(AzureRMModuleBase):
                 public_ip_allocation_method=ip_config.get('public_ip_allocation_method'),
             )
             try:
-                poller = self.network_client.public_ip_addresses.create_or_update(self.resource_group, name, params)
+                poller = self.network_client.public_ip_addresses.begin_create_or_update(self.resource_group, name, params)
                 pip = self.get_poller_result(poller)
-            except CloudError as exc:
+            except Exception as exc:
                 self.fail("Error creating {0} - {1}".format(name, str(exc)))
         return pip
 
     def create_or_update_nic(self, nic):
         try:
-            poller = self.network_client.network_interfaces.create_or_update(self.resource_group, self.name, nic)
+            poller = self.network_client.network_interfaces.begin_create_or_update(self.resource_group, self.name, nic)
             new_nic = self.get_poller_result(poller)
             return nic_to_dict(new_nic)
         except Exception as exc:
@@ -827,7 +871,7 @@ class AzureRMNetworkInterface(AzureRMModuleBase):
 
     def delete_nic(self):
         try:
-            poller = self.network_client.network_interfaces.delete(self.resource_group, self.name)
+            poller = self.network_client.network_interfaces.begin_delete(self.resource_group, self.name)
             self.get_poller_result(poller)
         except Exception as exc:
             self.fail("Error deleting network interface {0} - {1}".format(self.name, str(exc)))
@@ -837,14 +881,14 @@ class AzureRMNetworkInterface(AzureRMModuleBase):
         self.log("Fetching public ip address {0}".format(name))
         try:
             return self.network_client.public_ip_addresses.get(self.resource_group, name)
-        except Exception as exc:
+        except ResourceNotFoundError as exc:
             return None
 
     def get_security_group(self, resource_group, name):
         self.log("Fetching security group {0}".format(name))
         try:
             return self.network_client.network_security_groups.get(resource_group, name)
-        except Exception as exc:
+        except ResourceNotFoundError as exc:
             return None
 
     def backend_addr_pool_id(self, val):
@@ -861,8 +905,22 @@ class AzureRMNetworkInterface(AzureRMModuleBase):
                                    child_name_1=name)
         return val
 
+    def gateway_backend_addr_pool_id(self, val):
+        if isinstance(val, dict):
+            appgw = val.get('application_gateway', None)
+            name = val.get('name', None)
+            if appgw and name:
+                return resource_id(subscription=self.subscription_id,
+                                   resource_group=self.resource_group,
+                                   namespace='Microsoft.Network',
+                                   type='applicationGateways',
+                                   name=appgw,
+                                   child_type_1='backendAddressPools',
+                                   child_name_1=name)
+        return val
+
     def construct_ip_configuration_set(self, raw):
-        configurations = [str(dict(
+        configurations = [dict(
             private_ip_allocation_method=to_native(item.get('private_ip_allocation_method')),
             public_ip_address_name=(to_native(item.get('public_ip_address').get('name'))
                                     if item.get('public_ip_address') else to_native(item.get('public_ip_address_name'))),
@@ -870,11 +928,14 @@ class AzureRMNetworkInterface(AzureRMModuleBase):
             load_balancer_backend_address_pools=(set([to_native(self.backend_addr_pool_id(id))
                                                       for id in item.get('load_balancer_backend_address_pools')])
                                                  if item.get('load_balancer_backend_address_pools') else None),
+            application_gateway_backend_address_pools=(set([to_native(self.gateway_backend_addr_pool_id(id))
+                                                           for id in item.get('application_gateway_backend_address_pools')])
+                                                       if item.get('application_gateway_backend_address_pools') else None),
             application_security_groups=(set([to_native(asg_id) for asg_id in item.get('application_security_groups')])
                                          if item.get('application_security_groups') else None),
             name=to_native(item.get('name'))
-        )) for item in raw]
-        return set(configurations)
+        ) for item in raw]
+        return configurations
 
 
 def main():

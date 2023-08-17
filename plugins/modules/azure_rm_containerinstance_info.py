@@ -20,13 +20,17 @@ options:
     resource_group:
         description:
             - The name of the resource group.
+        type: str
         required: True
     name:
         description:
             - The name of the container instance.
+        type: str
     tags:
         description:
-            - Limit results by providing a list of tags. Format tags as 'key' or 'key:value'.
+            - Limit results by providing of tags. Format tags 'key:value'.
+        type: list
+        elements: str
 
 extends_documentation_fragment:
     - azure.azcollection.azure
@@ -45,6 +49,9 @@ EXAMPLES = '''
   - name: List Container Instances in a specified resource group name
     azure_rm_containerinstance_info:
       resource_group: myResourceGroup
+      tags:
+        - key
+        - key:value
 '''
 
 RETURN = '''
@@ -147,6 +154,17 @@ container_groups:
                     returned: always
                     type: list
                     sample: [ "pip install abc" ]
+                volume_mounts:
+                    description:
+                        - The list of volumes mounted in container instance
+                    returned: If volumes mounted in container instance
+                    type: list
+                    sample: [
+                        {
+                            "mount_path": "/mnt/repo",
+                            "name": "myvolume1"
+                        }
+                    ]
                 environment_variables:
                     description:
                         - List of container environment variables.
@@ -160,6 +178,24 @@ container_groups:
                             description:
                                 - Environment variable value.
                             type: str
+        subnet_ids:
+            description:
+                - The subnet resource IDs for a container group.
+            type: list
+            returned: always
+            sample: [{'id': "/subscriptions/xxx-xxx/resourceGroups/myRG/providers/Microsoft.Network/virtualNetworks/vnetrpfx/subnets/subrpfx"}]
+        volumes:
+            description: The list of Volumes that can be mounted by container instances
+            returned: If container group has volumes
+            type: list
+            sample: [
+                {
+                    "git_repo": {
+                        "repository": "https://github.com/Azure-Samples/aci-helloworld.git"
+                    },
+                    "name": "myvolume1"
+                }
+            ]
         tags:
             description: Tags assigned to the resource. Dictionary of string:string pairs.
             type: dict
@@ -170,10 +206,7 @@ from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common
 from ansible.module_utils.common.dict_transformations import _camel_to_snake
 
 try:
-    from msrestazure.azure_exceptions import CloudError
-    from msrestazure.azure_operation import AzureOperationPoller
-    from azure.mgmt.containerinstance import ContainerInstanceManagementClient
-    from msrest.serialization import Model
+    from azure.core.exceptions import ResourceNotFoundError
 except ImportError:
     # This is handled in azure_rm_common
     pass
@@ -191,7 +224,8 @@ class AzureRMContainerInstanceInfo(AzureRMModuleBase):
                 type='str'
             ),
             tags=dict(
-                type='list'
+                type='list',
+                elements='str'
             )
         )
         # store the results of the module operation
@@ -200,8 +234,12 @@ class AzureRMContainerInstanceInfo(AzureRMModuleBase):
         )
         self.resource_group = None
         self.name = None
+        self.tags = None
 
-        super(AzureRMContainerInstanceInfo, self).__init__(self.module_arg_spec, supports_check_mode=True, supports_tags=False)
+        super(AzureRMContainerInstanceInfo, self).__init__(self.module_arg_spec,
+                                                           supports_check_mode=True,
+                                                           supports_tags=False,
+                                                           facts_module=True)
 
     def exec_module(self, **kwargs):
 
@@ -227,7 +265,7 @@ class AzureRMContainerInstanceInfo(AzureRMModuleBase):
             response = self.containerinstance_client.container_groups.get(resource_group_name=self.resource_group,
                                                                           container_group_name=self.name)
             self.log("Response : {0}".format(response))
-        except CloudError as e:
+        except ResourceNotFoundError as e:
             self.log('Could not get facts for Container Instances.')
 
         if response is not None and self.has_tags(response.tags, self.tags):
@@ -241,7 +279,7 @@ class AzureRMContainerInstanceInfo(AzureRMModuleBase):
         try:
             response = self.containerinstance_client.container_groups.list_by_resource_group(resource_group_name=self.resource_group)
             self.log("Response : {0}".format(response))
-        except CloudError as e:
+        except Exception as e:
             self.fail('Could not list facts for Container Instances.')
 
         if response is not None:
@@ -257,7 +295,7 @@ class AzureRMContainerInstanceInfo(AzureRMModuleBase):
         try:
             response = self.containerinstance_client.container_groups.list()
             self.log("Response : {0}".format(response))
-        except CloudError as e:
+        except Exception as e:
             self.fail('Could not list facts for Container Instances.')
 
         if response is not None:
@@ -285,10 +323,14 @@ class AzureRMContainerInstanceInfo(AzureRMModuleBase):
                 'cpu': old_container['resources']['requests']['cpu'],
                 'ports': [],
                 'commands': old_container.get('command'),
-                'environment_variables': old_container.get('environment_variables')
+                'environment_variables': old_container.get('environment_variables'),
+                'volume_mounts': []
             }
             for port_index in range(len(old_container['ports'])):
                 new_container['ports'].append(old_container['ports'][port_index]['port'])
+            if 'volume_mounts' in old_container:
+                for volume_mount_index in range(len(old_container['volume_mounts'])):
+                    new_container['volume_mounts'].append(old_container['volume_mounts'][volume_mount_index])
             containers[container_index] = new_container
 
         d = {
@@ -302,7 +344,9 @@ class AzureRMContainerInstanceInfo(AzureRMModuleBase):
             'location': d['location'],
             'containers': containers,
             'restart_policy': _camel_to_snake(d.get('restart_policy')) if d.get('restart_policy') else None,
-            'tags': d.get('tags', None)
+            'tags': d.get('tags', None),
+            'subnet_ids': d.get('subnet_ids', None),
+            'volumes': d['volumes'] if 'volumes' in d else []
         }
         return d
 

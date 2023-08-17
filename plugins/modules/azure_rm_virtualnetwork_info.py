@@ -23,13 +23,15 @@ description:
 options:
     name:
         description:
-            - Only show results for a specific security group.
+            - Only show results for a specific virtual network.
     resource_group:
         description:
             - Limit results by resource group. Required when filtering by name.
     tags:
         description:
             - Limit results by providing a list of tags. Format tags as 'key' or 'key:value'.
+        type: list
+        elements: str
 
 extends_documentation_fragment:
     - azure.azcollection.azure
@@ -80,7 +82,7 @@ azure_virtualnetworks:
     }]
 virtualnetworks:
     description:
-        - List of virtual network dicts with same format as M(azure_rm_virtualnetwork) module parameters.
+        - List of virtual network dicts with same format as M(azure.azcollection.azure_rm_virtualnetwork) module parameters.
     returned: always
     type: complex
     contains:
@@ -120,6 +122,12 @@ virtualnetworks:
                 returned: always
                 sample: Succeeded
                 type: str
+            flow_timeout_in_minutes:
+                description:
+                    - The FlowTimeout value (in minutes) for the Virtual Network.
+                type: int
+                returned: always
+                sample: 8
             name:
                 description:
                     - Name of the virtual network.
@@ -192,7 +200,7 @@ virtualnetworks:
 '''
 
 try:
-    from msrestazure.azure_exceptions import CloudError
+    from azure.core.exceptions import ResourceNotFoundError
 except Exception:
     # This is handled in azure_rm_common
     pass
@@ -210,13 +218,15 @@ class AzureRMNetworkInterfaceInfo(AzureRMModuleBase):
         self.module_arg_spec = dict(
             name=dict(type='str'),
             resource_group=dict(type='str'),
-            tags=dict(type='list'),
+            tags=dict(type='list', elements='str'),
         )
 
         self.results = dict(
             changed=False,
             virtualnetworks=[]
         )
+
+        self.required_if = [('name', '*', ['resource_group'])]
 
         self.name = None
         self.resource_group = None
@@ -225,7 +235,8 @@ class AzureRMNetworkInterfaceInfo(AzureRMModuleBase):
         super(AzureRMNetworkInterfaceInfo, self).__init__(self.module_arg_spec,
                                                           supports_check_mode=True,
                                                           supports_tags=False,
-                                                          facts_module=True)
+                                                          facts_module=True,
+                                                          required_if=self.required_if)
 
     def exec_module(self, **kwargs):
         is_old_facts = self.module._name == 'azure_rm_virtualnetwork_facts'
@@ -256,8 +267,9 @@ class AzureRMNetworkInterfaceInfo(AzureRMModuleBase):
         results = []
 
         try:
-            item = self.network_client.virtual_networks.get(self.resource_group, self.name)
-        except CloudError:
+            item = self.network_client.virtual_networks.get(resource_group_name=self.resource_group,
+                                                            virtual_network_name=self.name)
+        except ResourceNotFoundError:
             pass
 
         if item and self.has_tags(item.tags, self.tags):
@@ -268,7 +280,7 @@ class AzureRMNetworkInterfaceInfo(AzureRMModuleBase):
         self.log('List items for resource group')
         try:
             response = self.network_client.virtual_networks.list(self.resource_group)
-        except CloudError as exc:
+        except ResourceNotFoundError as exc:
             self.fail("Failed to list for resource group {0} - {1}".format(self.resource_group, str(exc)))
 
         results = []
@@ -281,7 +293,7 @@ class AzureRMNetworkInterfaceInfo(AzureRMModuleBase):
         self.log('List all for items')
         try:
             response = self.network_client.virtual_networks.list_all()
-        except CloudError as exc:
+        except ResourceNotFoundError as exc:
             self.fail("Failed to list all items - {0}".format(str(exc)))
 
         results = []
@@ -304,7 +316,8 @@ class AzureRMNetworkInterfaceInfo(AzureRMModuleBase):
             name=vnet.name,
             location=vnet.location,
             tags=vnet.tags,
-            provisioning_state=vnet.provisioning_state
+            provisioning_state=vnet.provisioning_state,
+            flow_timeout_in_minutes=vnet.flow_timeout_in_minutes
         )
         if vnet.dhcp_options and len(vnet.dhcp_options.dns_servers) > 0:
             results['dns_servers'] = []

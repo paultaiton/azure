@@ -30,6 +30,8 @@ options:
     tags:
         description:
             - Limit results by providing a list of tags. Format tags as 'key' or 'key:value'.
+        type: list
+        elements: str
 
 extends_documentation_fragment:
     - azure.azcollection.azure
@@ -102,7 +104,7 @@ azure_networkinterfaces:
     }]
 networkinterfaces:
     description:
-        - List of network interface dicts. Each dict contains parameters can be passed to M(azure_rm_networkinterface) module.
+        - List of network interface dicts. Each dict contains parameters can be passed to M(azure.azcollection.azure_rm_networkinterface) module.
     type: list
     returned: always
     contains:
@@ -149,7 +151,11 @@ networkinterfaces:
                         - Public IP allocation method.
                 load_balancer_backend_address_pools:
                     description:
-                        - List of existing load-balancer backend address pools to associate with the network interface.
+                        - List of existing load-balancer backend address pools associated with the network interface.
+                application_gateway_backend_address_pools:
+                    description:
+                        - List of existing application gateway backend address pools associated with the network interface.
+                    version_added: "1.10.0"
                 primary:
                     description:
                         - Whether the IP configuration is the primary one in the list.
@@ -199,7 +205,7 @@ networkinterfaces:
                         - Fully qualified DNS name supporting internal communications between VMs in the same virtual network.
 '''  # NOQA
 try:
-    from msrestazure.azure_exceptions import CloudError
+    from azure.core.exceptions import ResourceNotFoundError
     from azure.common import AzureMissingResourceHttpError, AzureHttpError
 except Exception:
     # This is handled in azure_rm_common
@@ -220,6 +226,8 @@ def nic_to_dict(nic):
             primary=config.primary if config.primary else False,
             load_balancer_backend_address_pools=([item.id for item in config.load_balancer_backend_address_pools]
                                                  if config.load_balancer_backend_address_pools else None),
+            application_gateway_backend_address_pools=([item.id for item in config.application_gateway_backend_address_pools]
+                                                       if config.application_gateway_backend_address_pools else None),
             public_ip_address=config.public_ip_address.id if config.public_ip_address else None,
             public_ip_allocation_method=config.public_ip_address.public_ip_allocation_method if config.public_ip_address else None,
             application_security_groups=([asg.id for asg in config.application_security_groups]
@@ -263,7 +271,7 @@ class AzureRMNetworkInterfaceInfo(AzureRMModuleBase):
         self.module_arg_spec = dict(
             name=dict(type='str'),
             resource_group=dict(type='str'),
-            tags=dict(type='list')
+            tags=dict(type='list', elements='str')
         )
 
         self.results = dict(
@@ -314,7 +322,7 @@ class AzureRMNetworkInterfaceInfo(AzureRMModuleBase):
         item = None
         try:
             item = self.network_client.network_interfaces.get(self.resource_group, self.name)
-        except Exception:
+        except ResourceNotFoundError:
             pass
 
         return [item] if item and self.has_tags(item.tags, self.tags) else []
@@ -324,7 +332,7 @@ class AzureRMNetworkInterfaceInfo(AzureRMModuleBase):
         try:
             response = self.network_client.network_interfaces.list(self.resource_group)
             return [item for item in response if self.has_tags(item.tags, self.tags)]
-        except Exception as exc:
+        except ResourceNotFoundError as exc:
             self.fail("Error listing by resource group {0} - {1}".format(self.resource_group, str(exc)))
 
     def list_all(self):
@@ -332,7 +340,7 @@ class AzureRMNetworkInterfaceInfo(AzureRMModuleBase):
         try:
             response = self.network_client.network_interfaces.list_all()
             return [item for item in response if self.has_tags(item.tags, self.tags)]
-        except Exception as exc:
+        except ResourceNotFoundError as exc:
             self.fail("Error listing all - {0}".format(str(exc)))
 
     def serialize_nics(self, raws):

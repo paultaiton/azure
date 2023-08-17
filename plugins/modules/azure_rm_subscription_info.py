@@ -40,9 +40,10 @@ options:
         type: bool
     tags:
         description:
-            - Limit results by providing a list of tags. Format tags as 'key' or 'key:value'.
+            - Limit results by providing a list of tags. Format tags as 'key:value'.
             - Option has no effect when searching by id or name, and will be silently ignored.
         type: list
+        elements: str
 
 extends_documentation_fragment:
     - azure.azcollection.azure
@@ -111,7 +112,7 @@ subscriptions:
 '''
 
 try:
-    from msrestazure.azure_exceptions import CloudError
+    from azure.core.exceptions import ResourceNotFoundError
 except Exception:
     # This is handled in azure_rm_common
     pass
@@ -129,7 +130,7 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
         self.module_arg_spec = dict(
             name=dict(type='str', aliases=['subscription_name']),
             id=dict(type='str'),
-            tags=dict(type='list', elements='dict'),
+            tags=dict(type='list', elements='str'),
             all=dict(type='bool')
         )
 
@@ -175,7 +176,7 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
 
         try:
             item = self.subscription_client.subscriptions.get(self.id)
-        except CloudError:
+        except ResourceNotFoundError:
             pass
 
         result = self.to_dict(item)
@@ -186,7 +187,7 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
         self.log('List all items')
         try:
             response = self.subscription_client.subscriptions.list()
-        except CloudError as exc:
+        except Exception as exc:
             self.fail("Failed to list all items - {0}".format(str(exc)))
 
         results = []
@@ -195,20 +196,23 @@ class AzureRMSubscriptionInfo(AzureRMModuleBase):
             # If name is not defined and either state is Enabled or all is true, and tags match, return result.
             if self.name and self.name.lower() == item.display_name.lower():
                 results.append(self.to_dict(item))
-            elif not self.name and (self.all or item.state == "Enabled") and self.has_tags(item.tags, self.tags):
+            elif not self.name and (self.all or item.state == "Enabled"):
                 results.append(self.to_dict(item))
 
         return results
 
     def to_dict(self, subscription_object):
-        return dict(
-            display_name=subscription_object.display_name,
-            fqid=subscription_object.id,
-            state=subscription_object.state,
-            subscription_id=subscription_object.subscription_id,
-            tags=subscription_object.tags,
-            tenant_id=subscription_object.tenant_id
-        )
+        if self.has_tags(subscription_object.tags, self.tags):
+            return dict(
+                display_name=subscription_object.display_name,
+                fqid=subscription_object.id,
+                state=subscription_object.state,
+                subscription_id=subscription_object.subscription_id,
+                tags=subscription_object.tags,
+                tenant_id=subscription_object.tenant_id
+            )
+        else:
+            return dict()
 
 
 def main():

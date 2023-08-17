@@ -54,7 +54,7 @@ options:
                     - Supported framework list for Windows web app and Linux web app is different.
                     - Windows web apps support C(java), C(net_framework), C(php), C(python), and C(node) from June 2018.
                     - Windows web apps support multiple framework at the same time.
-                    - Linux web apps support C(java), C(ruby), C(php), C(dotnetcore), and C(node) from June 2018.
+                    - Linux web apps support C(java), C(ruby), C(php), C(python), C(dotnetcore), and C(node) from June 2018.
                     - Linux web apps support only one framework.
                     - Java framework is mutually exclusive with others.
                 choices:
@@ -70,7 +70,7 @@ options:
                     - Version of the framework. For Linux web app supported value, see U(https://aka.ms/linux-stacks) for more info.
                     - C(net_framework) supported value sample, C(v4.0) for .NET 4.6 and C(v3.0) for .NET 3.5.
                     - C(php) supported value sample, C(5.5), C(5.6), C(7.0).
-                    - C(python) supported value sample, C(5.5), C(5.6), C(7.0).
+                    - C(python) supported value sample, C(2.7), C(3.8), C(3.10).
                     - C(node) supported value sample, C(6.6), C(6.9).
                     - C(dotnetcore) supported value sample, C(1.0), C(1.1), C(1.2).
                     - C(ruby) supported value sample, C(2.3).
@@ -112,6 +112,29 @@ options:
             - Repository type of deployment source, for example C(LocalGit), C(GitHub).
             - List of supported values maintained at U(https://docs.microsoft.com/en-us/rest/api/appservice/webapps/createorupdate#scmtype).
 
+    always_on:
+        description:
+            - Keeps the app loaded even when there's no traffic.
+        type: bool
+
+    min_tls_version:
+        description:
+            - The minimum TLS encryption version required for the app.
+        type: str
+        choices:
+            - '1.0'
+            - '1.1'
+            - '1.2'
+
+    ftps_state:
+        description:
+            - The state of the FTP/FTPS service.
+        type: str
+        choices:
+            - AllAllowed
+            - FtpsOnly
+            - Disabled
+
     deployment_source:
         description:
             - Deployment source for git.
@@ -138,20 +161,6 @@ options:
         description:
             - Configures web site to accept only https requests.
         type: bool
-
-    dns_registration:
-        description:
-            - Whether or not the web app hostname is registered with DNS on creation. Set to C(false) to register.
-        type: bool
-
-    skip_custom_domain_verification:
-        description:
-            - Whether or not to skip verification of custom (non *.azurewebsites.net) domains associated with web app. Set to C(true) to skip.
-        type: bool
-
-    ttl_in_seconds:
-        description:
-            - Time to live in seconds for web app default domain name.
 
     app_settings:
         description:
@@ -294,10 +303,23 @@ EXAMPLES = '''
             settings:
               java_container: "Tomcat"
               java_container_version: "8.5"
+
+    - name: Create a linux web app with python framework
+      azure_rm_webapp:
+        resource_group: myResourceGroup
+        name: myLinuxWebapp
+        plan:
+          resource_group: myAppServicePlan_rg
+          name: myAppServicePlan
+        app_settings:
+          testkey: testvalue
+        frameworks:
+          - name: "python"
+            version: "3.10"
 '''
 
 RETURN = '''
-azure_webapp:
+id:
     description:
         - ID of current web app.
     returned: always
@@ -309,13 +331,9 @@ import time
 from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
-    from msrestazure.azure_exceptions import CloudError
-    from msrest.polling import LROPoller
-    from msrest.serialization import Model
-    from azure.mgmt.web.models import (
-        site_config, app_service_plan, Site,
-        AppServicePlan, SkuDescription, NameValuePair
-    )
+    from azure.core.exceptions import ResourceNotFoundError
+    from azure.core.polling import LROPoller
+    from azure.mgmt.web.models import Site, AppServicePlan, SkuDescription, NameValuePair, SiteSourceControl, StringDictionary
 except ImportError:
     # This is handled in azure_rm_common
     pass
@@ -446,6 +464,17 @@ class AzureRMWebApps(AzureRMModuleBase):
             scm_type=dict(
                 type='str',
             ),
+            always_on=dict(
+                type='bool',
+            ),
+            min_tls_version=dict(
+                type='str',
+                choices=['1.0', '1.1', '1.2'],
+            ),
+            ftps_state=dict(
+                type='str',
+                choices=['AllAllowed', 'FtpsOnly', 'Disabled'],
+            ),
             deployment_source=dict(
                 type='dict',
                 options=deployment_source_spec
@@ -457,17 +486,8 @@ class AzureRMWebApps(AzureRMModuleBase):
                 type='bool',
                 default=True
             ),
-            dns_registration=dict(
-                type='bool'
-            ),
             https_only=dict(
                 type='bool'
-            ),
-            skip_custom_domain_verification=dict(
-                type='bool'
-            ),
-            ttl_in_seconds=dict(
-                type='int'
             ),
             app_settings=dict(
                 type='dict'
@@ -496,9 +516,6 @@ class AzureRMWebApps(AzureRMModuleBase):
 
         # update in create_or_update as parameters
         self.client_affinity_enabled = True
-        self.dns_registration = None
-        self.skip_custom_domain_verification = None
-        self.ttl_in_seconds = None
         self.https_only = None
 
         self.tags = None
@@ -537,16 +554,16 @@ class AzureRMWebApps(AzureRMModuleBase):
                                                  "java_version",
                                                  "php_version",
                                                  "python_version",
-                                                 "scm_type"]
+                                                 "scm_type",
+                                                 "always_on",
+                                                 "min_tls_version",
+                                                 "ftps_state"]
 
         # updatable_properties
         self.updatable_properties = ["client_affinity_enabled",
-                                     "force_dns_registration",
-                                     "https_only",
-                                     "skip_custom_domain_verification",
-                                     "ttl_in_seconds"]
+                                     "https_only"]
 
-        self.supported_linux_frameworks = ['ruby', 'php', 'dotnetcore', 'node', 'java']
+        self.supported_linux_frameworks = ['ruby', 'php', 'python', 'dotnetcore', 'node', 'java']
         self.supported_windows_frameworks = ['net_framework', 'php', 'python', 'node', 'java']
 
         super(AzureRMWebApps, self).__init__(derived_arg_spec=self.module_arg_spec,
@@ -561,7 +578,7 @@ class AzureRMWebApps(AzureRMModuleBase):
             if hasattr(self, key):
                 setattr(self, key, kwargs[key])
             elif kwargs[key] is not None:
-                if key == "scm_type":
+                if key in ["scm_type", "always_on", "min_tls_version", "ftps_state"]:
                     self.site_config[key] = kwargs[key]
 
         old_response = None
@@ -662,8 +679,7 @@ class AzureRMWebApps(AzureRMModuleBase):
             if self.https_only is not None:
                 self.site.https_only = self.https_only
 
-            if self.client_affinity_enabled:
-                self.site.client_affinity_enabled = self.client_affinity_enabled
+            self.site.client_affinity_enabled = self.client_affinity_enabled
 
             # check if the web app already present in the resource group
             if not old_response:
@@ -760,7 +776,7 @@ class AzureRMWebApps(AzureRMModuleBase):
                 self.log('Web App instance deleted')
 
             else:
-                self.fail("Web app {0} not exists.".format(self.name))
+                self.log("Web app {0} not exists.".format(self.name))
 
         if to_be_updated:
             self.log('Need to Create/Update web app')
@@ -808,10 +824,10 @@ class AzureRMWebApps(AzureRMModuleBase):
 
     # compare xxx_version
     def is_site_config_changed(self, existing_config):
-        for fx_version in self.site_config_updatable_properties:
-            if self.site_config.get(fx_version):
-                if not getattr(existing_config, fx_version) or \
-                        getattr(existing_config, fx_version).upper() != self.site_config.get(fx_version).upper():
+        for updatable_property in self.site_config_updatable_properties:
+            if self.site_config.get(updatable_property):
+                if not getattr(existing_config, updatable_property) or \
+                        str(getattr(existing_config, updatable_property)).upper() != str(self.site_config.get(updatable_property)).upper():
                     return True
 
         return False
@@ -850,23 +866,15 @@ class AzureRMWebApps(AzureRMModuleBase):
             "Creating / Updating the Web App instance {0}".format(self.name))
 
         try:
-            skip_dns_registration = self.dns_registration
-            force_dns_registration = None if self.dns_registration is None else not self.dns_registration
-
-            response = self.web_client.web_apps.create_or_update(resource_group_name=self.resource_group,
-                                                                 name=self.name,
-                                                                 site_envelope=self.site,
-                                                                 skip_dns_registration=skip_dns_registration,
-                                                                 skip_custom_domain_verification=self.skip_custom_domain_verification,
-                                                                 force_dns_registration=force_dns_registration,
-                                                                 ttl_in_seconds=self.ttl_in_seconds)
+            response = self.web_client.web_apps.begin_create_or_update(resource_group_name=self.resource_group,
+                                                                       name=self.name,
+                                                                       site_envelope=self.site)
             if isinstance(response, LROPoller):
                 response = self.get_poller_result(response)
 
-        except CloudError as exc:
+        except Exception as exc:
             self.log('Error attempting to create the Web App instance.')
-            self.fail(
-                "Error creating the Web App instance: {0}".format(str(exc)))
+            self.fail("Error creating the Web App instance: {0}".format(str(exc)))
         return webapp_to_dict(response)
 
     def delete_webapp(self):
@@ -877,12 +885,10 @@ class AzureRMWebApps(AzureRMModuleBase):
         '''
         self.log("Deleting the Web App instance {0}".format(self.name))
         try:
-            response = self.web_client.web_apps.delete(resource_group_name=self.resource_group,
-                                                       name=self.name)
-        except CloudError as e:
+            self.web_client.web_apps.delete(resource_group_name=self.resource_group, name=self.name)
+        except Exception as e:
             self.log('Error attempting to delete the Web App instance.')
-            self.fail(
-                "Error deleting the Web App instance: {0}".format(str(e)))
+            self.fail("Error deleting the Web App instance: {0}".format(str(e)))
 
         return True
 
@@ -898,20 +904,18 @@ class AzureRMWebApps(AzureRMModuleBase):
         response = None
 
         try:
-            response = self.web_client.web_apps.get(resource_group_name=self.resource_group,
-                                                    name=self.name)
+            response = self.web_client.web_apps.get(resource_group_name=self.resource_group, name=self.name)
 
-            # Newer SDK versions (0.40.0+) seem to return None if it doesn't exist instead of raising CloudError
+            # Newer SDK versions (0.40.0+) seem to return None if it doesn't exist instead of raising error
             if response is not None:
                 self.log("Response : {0}".format(response))
                 self.log("Web App instance : {0} found".format(response.name))
                 return webapp_to_dict(response)
 
-        except CloudError as ex:
+        except ResourceNotFoundError:
             pass
 
-        self.log("Didn't find web app {0} in resource group {1}".format(
-            self.name, self.resource_group))
+        self.log("Didn't find web app {0} in resource group {1}".format(self.name, self.resource_group))
 
         return False
 
@@ -927,13 +931,13 @@ class AzureRMWebApps(AzureRMModuleBase):
                 resource_group_name=self.plan['resource_group'],
                 name=self.plan['name'])
 
-            # Newer SDK versions (0.40.0+) seem to return None if it doesn't exist instead of raising CloudError
+            # Newer SDK versions (0.40.0+) seem to return None if it doesn't exist instead of raising error
             if response is not None:
                 self.log("Response : {0}".format(response))
                 self.log("App Service Plan : {0} found".format(response.name))
 
                 return appserviceplan_to_dict(response)
-        except CloudError as ex:
+        except ResourceNotFoundError:
             pass
 
         self.log("Didn't find app service plan {0} in resource group {1}".format(
@@ -957,8 +961,8 @@ class AzureRMWebApps(AzureRMModuleBase):
             plan_def = AppServicePlan(
                 location=self.plan['location'], app_service_plan_name=self.plan['name'], sku=sku_def, reserved=(self.plan.get('is_linux', None)))
 
-            poller = self.web_client.app_service_plans.create_or_update(
-                self.plan['resource_group'], self.plan['name'], plan_def)
+            poller = self.web_client.app_service_plans.begin_create_or_update(
+                resource_group_name=self.plan['resource_group'], name=self.plan['name'], app_service_plan=plan_def)
 
             if isinstance(poller, LROPoller):
                 response = self.get_poller_result(poller)
@@ -966,7 +970,7 @@ class AzureRMWebApps(AzureRMModuleBase):
             self.log("Response : {0}".format(response))
 
             return appserviceplan_to_dict(response)
-        except CloudError as ex:
+        except Exception as ex:
             self.fail("Failed to create app service plan {0} in resource group {1}: {2}".format(
                 self.plan['name'], self.plan['resource_group'], str(ex)))
 
@@ -978,13 +982,11 @@ class AzureRMWebApps(AzureRMModuleBase):
         self.log("List application setting")
 
         try:
-
-            response = self.web_client.web_apps.list_application_settings(
-                resource_group_name=self.resource_group, name=self.name)
+            response = self.web_client.web_apps.list_application_settings(resource_group_name=self.resource_group, name=self.name)
             self.log("Response : {0}".format(response))
 
             return response.properties
-        except CloudError as ex:
+        except Exception as ex:
             self.fail("Failed to list application settings for web app {0} in resource group {1}: {2}".format(
                 self.name, self.resource_group, str(ex)))
 
@@ -996,12 +998,15 @@ class AzureRMWebApps(AzureRMModuleBase):
         self.log("Update application setting")
 
         try:
+            settings = StringDictionary(
+                properties=self.app_settings_strDic
+            )
             response = self.web_client.web_apps.update_application_settings(
-                resource_group_name=self.resource_group, name=self.name, properties=self.app_settings_strDic)
+                resource_group_name=self.resource_group, name=self.name, app_settings=settings)
             self.log("Response : {0}".format(response))
 
             return response
-        except CloudError as ex:
+        except Exception as ex:
             self.fail("Failed to update application settings for web app {0} in resource group {1}: {2}".format(
                 self.name, self.resource_group, str(ex)))
 
@@ -1019,12 +1024,16 @@ class AzureRMWebApps(AzureRMModuleBase):
         self.deployment_source['is_mercurial'] = False
 
         try:
-            response = self.web_client.web_client.create_or_update_source_control(
-                self.resource_group, self.name, self.deployment_source)
+            site_source_control = SiteSourceControl(
+                repo_url=self.deployment_source.get('url'),
+                branch=self.deployment_source.get('branch')
+            )
+            response = self.web_client.web_apps.begin_create_or_update_source_control(
+                resource_group_name=self.resource_group, name=self.name, site_source_control=site_source_control)
             self.log("Response : {0}".format(response))
 
             return response.as_dict()
-        except CloudError as ex:
+        except Exception:
             self.fail("Failed to update site source control for web app {0} in resource group {1}".format(
                 self.name, self.resource_group))
 
@@ -1036,13 +1045,12 @@ class AzureRMWebApps(AzureRMModuleBase):
         self.log("Get web app configuration")
 
         try:
-
             response = self.web_client.web_apps.get_configuration(
                 resource_group_name=self.resource_group, name=self.name)
             self.log("Response : {0}".format(response))
 
             return response
-        except CloudError as ex:
+        except ResourceNotFoundError as ex:
             self.log("Failed to get configuration for web app {0} in resource group {1}: {2}".format(
                 self.name, self.resource_group, str(ex)))
 
@@ -1066,7 +1074,7 @@ class AzureRMWebApps(AzureRMModuleBase):
             self.log("Response : {0}".format(response))
 
             return response
-        except CloudError as ex:
+        except Exception as ex:
             request_id = ex.request_id if ex.request_id else ''
             self.log("Failed to {0} web app {1} in resource group {2}, request_id {3} - {4}".format(
                 appstate, self.name, self.resource_group, request_id, str(ex)))

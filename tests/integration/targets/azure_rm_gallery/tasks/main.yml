@@ -6,28 +6,28 @@
 - name: Create virtual network
   azure_rm_virtualnetwork:
     resource_group: "{{ resource_group }}"
-    name: testVnet
+    name: "testVnet{{ rpfx }}"
     address_prefixes: "10.0.0.0/16"
 
 - name: Add subnet
   azure_rm_subnet:
     resource_group: "{{ resource_group }}"
-    name: testSubnet
+    name: "testSubnet{{ rpfx }}"
     address_prefix: "10.0.1.0/24"
-    virtual_network: testVnet
+    virtual_network: "testVnet{{ rpfx }}"
 
 - name: Create public IP address
   azure_rm_publicipaddress:
     resource_group: "{{ resource_group }}"
     allocation_method: Static
-    name: testPublicIP
+    name: "testPublicIP{{ rpfx }}"
 
 - name: Create virtual network inteface cards for VM A and B
   azure_rm_networkinterface:
     resource_group: "{{ resource_group }}"
     name: "vmforimage{{ rpfx }}nic"
-    virtual_network: testVnet
-    subnet: testSubnet
+    virtual_network: "testVnet{{ rpfx }}"
+    subnet: "testSubnet{{ rpfx }}"
 
 - name: Create VM
   azure_rm_virtualmachine:
@@ -50,8 +50,11 @@
 - name: Get VM facts
   azure_rm_virtualmachine_info:
     resource_group: "{{ resource_group }}"
-    name:  "vmforimage{{ rpfx }}"
+    name: "vmforimage{{ rpfx }}"
   register: output
+
+- name: Pause for 10 mimutes to VM updating
+  shell: sleep 600
 
 - name: Create a snapshot by importing an unmanaged blob from the same subscription.
   azure_rm_snapshot:
@@ -65,6 +68,28 @@
 
 - assert:
     that: 
+      - output.changed
+
+- name: Create a managed disk
+  azure_rm_manageddisk:
+    resource_group: "{{ resource_group }}"
+    name: "disk-{{ rpfx }}"
+    disk_size_gb: 1
+  register: disk_output
+
+- name: Create a snapshot with I(incremental=True)
+  azure_rm_snapshot:
+    resource_group: "{{ resource_group }}"
+    name: "mySnapshot-{{ rpfx }}02"
+    location: eastus
+    incremental: True
+    creation_data:
+      create_option: Copy
+      source_id: "{{ disk_output.state.id }}"
+  register: output
+
+- assert:
+    that:
       - output.changed
 
 - name: Generalize VM

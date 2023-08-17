@@ -6,7 +6,6 @@ __metaclass__ = type
 
 DOCUMENTATION = r'''
     name: azure_rm
-    plugin_type: inventory
     short_description: Azure Resource Manager inventory plugin
     extends_documentation_fragment:
       - azure.azcollection.azure
@@ -36,6 +35,7 @@ EXAMPLES = '''
 # vmid: the VM's internal SMBIOS ID, eg: '36bca69d-c365-4584-8c06-a62f4a1dc5d2'
 # vmss: if the VM is a member of a scaleset (vmss), a dictionary including the id and name of the parent scaleset
 # availability_zone: availability zone in which VM is deployed, eg '1','2','3'
+# creation_time: datetime object of when the VM was created, eg '2023-07-21T09:30:30.4710164+00:00'
 #
 # The following host variables are sometimes availble:
 # computer_name: the Operating System's hostname. Will not be available if azure agent is not available and picking it up.
@@ -81,6 +81,7 @@ hostvar_expressions:
 # change how inventory_hostname is generated. Each item is a jinja2 expression similar to hostvar_expressions.
 hostnames:
   - tags.vm_name
+  - default_inventory_hostname + ".domain.tld" # Transfer to fqdn if you use shortnames for VMs
   - default  # special var that uses the default hashed name
 
 # places hosts in dynamically-created groups based on a variable value.
@@ -100,6 +101,8 @@ keyed_groups:
 exclude_host_filters:
 # excludes hosts in the eastus region
 - location in ['eastus']
+- tags['tagkey'] is defined and tags['tagkey'] == 'tagkey'
+- tags['tagkey2'] is defined and tags['tagkey2'] == 'tagkey2'
 # excludes hosts that are powered off
 - powerstate != 'running'
 '''
@@ -112,6 +115,7 @@ import hashlib
 import json
 import re
 import uuid
+import os
 
 try:
     from queue import Queue, Empty
@@ -178,7 +182,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
         self._filters = None
 
         # FUTURE: use API profiles with defaults
-        self._compute_api_version = '2017-03-30'
+        self._compute_api_version = '2021-11-01'
         self._network_api_version = '2015-06-15'
 
         self._default_header_parameters = {'Content-Type': 'application/json; charset=utf-8'}
@@ -267,8 +271,12 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
         self._enqueue_get(url=url, api_version=self._compute_api_version, handler=self._on_vmss_page_response)
 
     def _get_hosts(self):
-        for vm_rg in self.get_option('include_vm_resource_groups'):
-            self._enqueue_vm_list(vm_rg)
+        if os.environ.get('ANSIBLE_AZURE_VM_RESOURCE_GROUPS'):
+            for vm_rg in os.environ['ANSIBLE_AZURE_VM_RESOURCE_GROUPS'].split(","):
+                self._enqueue_vm_list(vm_rg)
+        else:
+            for vm_rg in self.get_option('include_vm_resource_groups'):
+                self._enqueue_vm_list(vm_rg)
 
         for vmss_rg in self.get_option('include_vmss_resource_groups'):
             self._enqueue_vmss_list(vmss_rg)
@@ -279,7 +287,10 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
             self._process_queue_serial()
 
         constructable_config_strict = boolean(self.get_option('fail_on_template_errors'))
-        constructable_config_compose = self.get_option('hostvar_expressions')
+        if self.get_option('hostvar_expressions') is not None:
+            constructable_config_compose = self.get_option('hostvar_expressions')
+        else:
+            constructable_config_compose = self.get_option('compose')
         constructable_config_groups = self.get_option('conditional_groups')
         constructable_config_keyed_groups = self.get_option('keyed_groups')
 
@@ -414,11 +425,10 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
                 status_code = r.get('httpStatusCode')
                 returned_name = r['name']
                 result = batch_response_handlers[returned_name]
-                if status_code != 200:
+                if status_code == 200:
                     # FUTURE: error-tolerant operation mode (eg, permissions)
-                    raise AnsibleError("a batched request failed with status code {0}, url {1}".format(status_code, result.url))
-                # FUTURE: store/handle errors from individual handlers
-                result.handler(r['content'], **result.handler_args)
+                    # FUTURE: store/handle errors from individual handlers
+                    result.handler(r['content'], **result.handler_args)
 
     def _send_batch(self, batched_requests):
         url = '/batch'
@@ -521,6 +531,11 @@ class AzureHost(object):
             av_zone = self._vm_model['zones']
 
         new_hostvars = dict(
+            network_interface=[],
+            mac_address=[],
+            network_interface_id=[],
+            security_group_id=[],
+            security_group=[],
             public_ipv4_addresses=[],
             public_dns_hostnames=[],
             private_ipv4_addresses=[],
@@ -545,6 +560,7 @@ class AzureHost(object):
             plan=self._vm_model['properties']['plan']['name'] if self._vm_model['properties'].get('plan') else None,
             resource_group=parse_resource_id(self._vm_model['id']).get('resource_group').lower(),
             default_inventory_hostname=self.default_inventory_hostname,
+            creation_time=self._vm_model['properties']['timeCreated'],
         )
 
         # set nic-related values from the primary NIC first
@@ -565,17 +581,18 @@ class AzureHost(object):
                     if pip_fqdn:
                         new_hostvars['public_dns_hostnames'].append(pip_fqdn)
 
-            new_hostvars['mac_address'] = nic._nic_model['properties'].get('macAddress')
-            new_hostvars['network_interface'] = nic._nic_model['name']
-            new_hostvars['network_interface_id'] = nic._nic_model['id']
-            new_hostvars['security_group_id'] = nic._nic_model['properties']['networkSecurityGroup']['id'] \
+            new_hostvars['mac_address'].append(nic._nic_model['properties'].get('macAddress'))
+            new_hostvars['network_interface'].append(nic._nic_model['name'])
+            new_hostvars['network_interface_id'].append(nic._nic_model['id'])
+            new_hostvars['security_group_id'].append(nic._nic_model['properties']['networkSecurityGroup']['id']) \
                 if nic._nic_model['properties'].get('networkSecurityGroup') else None
-            new_hostvars['security_group'] = parse_resource_id(new_hostvars['security_group_id'])['resource_name'] \
+            new_hostvars['security_group'].append(parse_resource_id(nic._nic_model['properties']['networkSecurityGroup']['id'])['resource_name']) \
                 if nic._nic_model['properties'].get('networkSecurityGroup') else None
 
         # set image and os_disk
         new_hostvars['image'] = {}
         new_hostvars['os_disk'] = {}
+        new_hostvars['data_disks'] = []
         storageProfile = self._vm_model['properties'].get('storageProfile')
         if storageProfile:
             imageReference = storageProfile.get('imageReference')
@@ -595,11 +612,18 @@ class AzureHost(object):
             osDisk = storageProfile.get('osDisk')
             new_hostvars['os_disk'] = dict(
                 name=osDisk.get('name'),
-                operating_system_type=osDisk.get('osType').lower() if osDisk.get('osType') else None
+                operating_system_type=osDisk.get('osType').lower() if osDisk.get('osType') else None,
+                id=osDisk.get('managedDisk', {}).get('id')
             )
+            new_hostvars['data_disks'] = [
+                dict(
+                    name=dataDisk.get('name'),
+                    lun=dataDisk.get('lun'),
+                    id=dataDisk.get('managedDisk', {}).get('id')
+                ) for dataDisk in storageProfile.get('dataDisks', [])
+            ]
 
         self._hostvars = new_hostvars
-
         return self._hostvars
 
     def _on_instanceview_response(self, vm_instanceview_model):

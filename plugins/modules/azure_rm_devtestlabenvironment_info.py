@@ -40,6 +40,7 @@ options:
         description:
             - Limit results by providing a list of tags. Format tags as 'key' or 'key:value'.
         type: list
+        elements: str
 
 extends_documentation_fragment:
     - azure.azcollection.azure
@@ -56,6 +57,8 @@ EXAMPLES = '''
       lab_name: myLab
       user_name: myUser
       name: myEnvironment
+      tags:
+        - key:value
 '''
 
 RETURN = '''
@@ -120,7 +123,7 @@ environments:
 from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
-    from msrestazure.azure_exceptions import CloudError
+    from azure.core.exceptions import ResourceNotFoundError
     from azure.mgmt.devtestlabs import DevTestLabsClient
     from msrest.serialization import Model
 except ImportError:
@@ -148,7 +151,8 @@ class AzureRMDtlEnvironmentInfo(AzureRMModuleBase):
                 type='str'
             ),
             tags=dict(
-                type='list'
+                type='list',
+                elements='str'
             )
         )
         # store the results of the module operation
@@ -161,7 +165,7 @@ class AzureRMDtlEnvironmentInfo(AzureRMModuleBase):
         self.user_name = None
         self.name = None
         self.tags = None
-        super(AzureRMDtlEnvironmentInfo, self).__init__(self.module_arg_spec, supports_check_mode=True, supports_tags=False)
+        super(AzureRMDtlEnvironmentInfo, self).__init__(self.module_arg_spec, supports_check_mode=True, supports_tags=False, facts_module=True)
 
     def exec_module(self, **kwargs):
         is_old_facts = self.module._name == 'azure_rm_devtestlabenvironment_facts'
@@ -172,6 +176,7 @@ class AzureRMDtlEnvironmentInfo(AzureRMModuleBase):
         for key in self.module_arg_spec:
             setattr(self, key, kwargs[key])
         self.mgmt_client = self.get_mgmt_svc_client(DevTestLabsClient,
+                                                    is_track2=True,
                                                     base_url=self._cloud_environment.endpoints.resource_manager)
 
         if self.name:
@@ -190,7 +195,7 @@ class AzureRMDtlEnvironmentInfo(AzureRMModuleBase):
                                                          user_name=self.user_name,
                                                          name=self.name)
             self.log("Response : {0}".format(response))
-        except CloudError as e:
+        except ResourceNotFoundError as e:
             self.log('Could not get facts for Environment.')
 
         if response and self.has_tags(response.tags, self.tags):
@@ -206,7 +211,7 @@ class AzureRMDtlEnvironmentInfo(AzureRMModuleBase):
                                                           lab_name=self.lab_name,
                                                           user_name=self.user_name)
             self.log("Response : {0}".format(response))
-        except CloudError as e:
+        except Exception as e:
             self.log('Could not get facts for Environment.')
 
         if response is not None:

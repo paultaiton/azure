@@ -24,6 +24,28 @@ options:
         description:
             - Name of the keyvault key.
         required: true
+    key_type:
+        description:
+            - The type of key to create. For valid values, see JsonWebKeyType. Possible values include EC, EC-HSM, RSA, RSA-HSM, oct
+        default: 'RSA'
+    key_size:
+        description:
+            - The key size in bits. For example 2048, 3072, or 4096 for RSA.
+    key_attributes:
+        description:
+            - The attributes of a key managed by the key vault service.
+        suboptions:
+            enabled:
+                description: bool
+            not_before:
+                description:
+                    - not valid before date in UTC ISO format without the Z at the end
+            expires:
+                description:
+                    - not valid after date in UTC ISO format without the Z at the end
+    curve:
+        description:
+            - Elliptic curve name. For valid values, see JsonWebKeyCurveName. Possible values include P-256, P-384, P-521, P-256K.
     byok_file:
         description:
             - BYOK file.
@@ -80,17 +102,17 @@ state:
 from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
-    import re
-    import codecs
-    from azure.keyvault import KeyVaultClient, KeyVaultId, KeyVaultAuthentication
-    from azure.keyvault.models import KeyAttributes, JsonWebKey
-    from azure.common.credentials import ServicePrincipalCredentials
-    from azure.keyvault.models.key_vault_error import KeyVaultErrorException
-    from msrestazure.azure_active_directory import MSIAuthentication
-    from OpenSSL import crypto
+    from azure.keyvault.keys import KeyClient
+    from datetime import datetime
 except ImportError:
     # This is handled in azure_rm_common
     pass
+
+key_addribute_spec = dict(
+    enabled=dict(type='bool', required=False),
+    not_before=dict(type='str', no_log=True, required=False),
+    expires=dict(type='str', no_log=True, required=False)
+)
 
 
 class AzureRMKeyVaultKey(AzureRMModuleBase):
@@ -101,6 +123,10 @@ class AzureRMKeyVaultKey(AzureRMModuleBase):
         self.module_arg_spec = dict(
             key_name=dict(type='str', required=True),
             keyvault_uri=dict(type='str', no_log=True, required=True),
+            key_type=dict(type='str', default='RSA'),
+            key_size=dict(type='int'),
+            key_attributes=dict(type='dict', no_log=True, options=key_addribute_spec),
+            curve=dict(type='str'),
             pem_file=dict(type='str'),
             pem_password=dict(type='str', no_log=True),
             byok_file=dict(type='str'),
@@ -114,6 +140,10 @@ class AzureRMKeyVaultKey(AzureRMModuleBase):
 
         self.key_name = None
         self.keyvault_uri = None
+        self.key_type = None
+        self.key_size = None
+        self.key_attributes = None
+        self.curve = None
         self.pem_file = None
         self.pem_password = None
         self.state = None
@@ -147,7 +177,7 @@ class AzureRMKeyVaultKey(AzureRMModuleBase):
             if self.state == 'absent':
                 changed = True
 
-        except KeyVaultErrorException:
+        except Exception:
             # Key doesn't exist
             if self.state == 'present':
                 changed = True
@@ -159,7 +189,7 @@ class AzureRMKeyVaultKey(AzureRMModuleBase):
 
             # Create key
             if self.state == 'present' and changed:
-                results['key_id'] = self.create_key(self.key_name, self.tags)
+                results['key_id'] = self.create_key(self.key_name)
                 self.results['state'] = results
                 self.results['state']['status'] = 'Created'
             # Delete key
@@ -176,128 +206,47 @@ class AzureRMKeyVaultKey(AzureRMModuleBase):
         return self.results
 
     def get_keyvault_client(self):
-        # Don't use MSI credentials if the auth_source isn't set to MSI.  The below will Always result in credentials when running on an Azure VM.
-        if self.module.params['auth_source'] == 'msi':
-            try:
-                self.log("Get KeyVaultClient from MSI")
-                resource = self.azure_auth._cloud_environment.suffixes.keyvault_dns.split('.', 1).pop()
-                credentials = MSIAuthentication(resource="https://{0}".format(resource))
-                return KeyVaultClient(credentials)
-            except Exception:
-                self.log("Get KeyVaultClient from service principal")
 
-        # Create KeyVault Client using KeyVault auth class and auth_callback
-        def auth_callback(server, resource, scope):
-            if self.credentials['client_id'] is None or self.credentials['secret'] is None:
-                self.fail('Please specify client_id, secret and tenant to access azure Key Vault.')
-
-            tenant = self.credentials.get('tenant')
-            if not self.credentials['tenant']:
-                tenant = "common"
-
-            authcredential = ServicePrincipalCredentials(
-                client_id=self.credentials['client_id'],
-                secret=self.credentials['secret'],
-                tenant=tenant,
-                cloud_environment=self._cloud_environment,
-                resource="https://vault.azure.net")
-
-            token = authcredential.token
-            return token['token_type'], token['access_token']
-
-        return KeyVaultClient(KeyVaultAuthentication(auth_callback))
+        return KeyClient(vault_url=self.keyvault_uri, credential=self.azure_auth.azure_credential_track2)
 
     def get_key(self, name, version=''):
         ''' Gets an existing key '''
-        key_bundle = self.client.get_key(self.keyvault_uri, name, version)
-        if key_bundle:
-            key_id = KeyVaultId.parse_key_id(key_bundle.key.kid)
-        return key_id.id
+        key_bundle = self.client.get_key(name, version)
 
-    def create_key(self, name, tags, kty='RSA'):
+        if key_bundle:
+            return key_bundle.id
+
+    def create_key(self, name):
         ''' Creates a key '''
-        key_bundle = self.client.create_key(vault_base_url=self.keyvault_uri, key_name=name, kty=kty, tags=tags)
-        key_id = KeyVaultId.parse_key_id(key_bundle.key.kid)
-        return key_id.id
+
+        if self.key_attributes is not None:
+            k_enabled = self.key_attributes.get('enabled', True)
+            k_not_before = self.key_attributes.get('not_before', None)
+            k_expires = self.key_attributes.get('expires', None)
+            if k_not_before:
+                k_not_before = datetime.fromisoformat(k_not_before.replace('Z', '+00:00'))
+            if k_expires:
+                k_expires = datetime.fromisoformat(k_expires.replace('Z', '+00:00'))
+        else:
+            k_enabled = True
+            k_not_before = None
+            k_expires = None
+
+        key_bundle = self.client.create_key(name=name,
+                                            key_type=self.key_type,
+                                            size=self.key_size,
+                                            curve=self.curve,
+                                            tags=self.tags,
+                                            enabled=k_enabled,
+                                            not_before=k_not_before,
+                                            expires_on=k_expires)
+        return key_bundle._properties._id
 
     def delete_key(self, name):
         ''' Deletes a key '''
-        deleted_key = self.client.delete_key(self.keyvault_uri, name)
-        key_id = KeyVaultId.parse_key_id(deleted_key.key.kid)
-        return key_id.id
-
-    def import_key(self, key_name, destination=None, key_ops=None, disabled=False, expires=None,
-                   not_before=None, tags=None, pem_file=None, pem_password=None, byok_file=None):
-        """ Import a private key. Supports importing base64 encoded private keys from PEM files.
-            Supports importing BYOK keys into HSM for premium KeyVaults. """
-
-        def _to_bytes(hex_string):
-            # zero pads and decodes a hex string
-            if len(hex_string) % 2:
-                hex_string = '{0}'.format(hex_string)
-            return codecs.decode(hex_string, 'hex_codec')
-
-        def _set_rsa_parameters(dest, src):
-            # map OpenSSL parameter names to JsonWebKey property names
-            conversion_dict = {
-                'modulus': 'n',
-                'publicExponent': 'e',
-                'privateExponent': 'd',
-                'prime1': 'p',
-                'prime2': 'q',
-                'exponent1': 'dp',
-                'exponent2': 'dq',
-                'coefficient': 'qi'
-            }
-            # regex: looks for matches that fit the following patterns:
-            #   integerPattern: 65537 (0x10001)
-            #   hexPattern:
-            #      00:a0:91:4d:00:23:4a:c6:83:b2:1b:4c:15:d5:be:
-            #      d8:87:bd:c9:59:c2:e5:7a:f5:4a:e7:34:e8:f0:07:
-            # The desired match should always be the first component of the match
-            regex = re.compile(r'([^:\s]*(:[^\:)]+\))|([^:\s]*(:\s*[0-9A-Fa-f]{2})+))')
-            # regex2: extracts the hex string from a format like: 65537 (0x10001)
-            regex2 = re.compile(r'(?<=\(0x{1})([0-9A-Fa-f]*)(?=\))')
-
-            key_params = crypto.dump_privatekey(crypto.FILETYPE_TEXT, src).decode('utf-8')
-            for match in regex.findall(key_params):
-                comps = match[0].split(':', 1)
-                name = conversion_dict.get(comps[0], None)
-                if name:
-                    value = comps[1].replace(' ', '').replace('\n', '').replace(':', '')
-                    try:
-                        value = _to_bytes(value)
-                    except Exception:  # pylint:disable=broad-except
-                        # if decoding fails it is because of an integer pattern. Extract the hex
-                        # string and retry
-                        value = _to_bytes(regex2.findall(value)[0])
-                    setattr(dest, name, value)
-
-        key_attrs = KeyAttributes(not disabled, not_before, expires)
-        key_obj = JsonWebKey(key_ops=key_ops)
-        if pem_file:
-            key_obj.kty = 'RSA'
-            with open(pem_file, 'r') as f:
-                pem_data = f.read()
-            # load private key and prompt for password if encrypted
-            try:
-                pem_password = str(pem_password).encode() if pem_password else None
-                # despite documentation saying password should be a string, it needs to actually
-                # be UTF-8 encoded bytes
-                pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, pem_data, pem_password)
-            except crypto.Error:
-                pass  # wrong password
-            except TypeError:
-                pass  # no pass provided
-            _set_rsa_parameters(key_obj, pkey)
-        elif byok_file:
-            with open(byok_file, 'rb') as f:
-                byok_data = f.read()
-            key_obj.kty = 'RSA-HSM'
-            key_obj.t = byok_data
-
-        return self.client.import_key(
-            self.keyvault_uri, key_name, key_obj, destination == 'hsm', key_attrs, tags)
+        deleted_key = self.client.begin_delete_key(name)
+        result = self.get_poller_result(deleted_key)
+        return result.properties._id
 
 
 def main():

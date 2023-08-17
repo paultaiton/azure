@@ -19,7 +19,8 @@ options:
         choices: ['azure_rm', 'azure.azcollection.azure_rm']
     include_vm_resource_groups:
         description: A list of resource group names to search for virtual machines. '\*' will include all resource
-            groups in the subscription.
+            groups in the subscription. Can also be set comma separated resource group names via the
+            C(ANSIBLE_AZURE_VM_RESOURCE_GROUPS) environment variable.
         default: ['*']
     include_vmss_resource_groups:
         description: A list of resource group names to search for virtual machine scale sets (VMSSs). '\*' will
@@ -69,7 +70,7 @@ options:
             which group names end up being used as.
         type: bool
         default: False
-        version_added: '2.8'
+        version_added: '0.0.1'
     plain_host_names:
         description:
         - By default this plugin will use globally unique host names.
@@ -78,7 +79,7 @@ options:
             The default behavior will add extra hashing to the end of the hostname to prevent such conflicts.
         type: bool
         default: False
-        version_added: '2.8'
+        version_added: '0.0.1'
     hostnames:
         description:
         - A list of Jinja2 expressions in order of precedence to compose inventory_hostname.
@@ -89,5 +90,6 @@ options:
             resulted in a valid hostname.
         - Use ``default_inventory_hostname`` to access the default hostname generator's value in any of the Jinja2 expressions.
         type: list
+        elements: str
         default: [default]
 '''

@@ -29,6 +29,7 @@ options:
         description:
             - Limit results by providing a list of tags. Format tags as 'key' or 'key:value'.
         type: list
+        elements: str
 
 extends_documentation_fragment:
     - azure.azcollection.azure
@@ -41,6 +42,8 @@ EXAMPLES = '''
   - name: List instances of DevTest Lab by resource group
     azure_rm_devtestlab_info:
       resource_group: testrg
+      tags:
+        - key:value
 
   - name: List instances of DevTest Lab in subscription
     azure_rm_devtestlab_info:
@@ -141,9 +144,9 @@ labs:
 from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
-    from msrestazure.azure_exceptions import CloudError
     from azure.mgmt.devtestlabs import DevTestLabsClient
     from msrest.serialization import Model
+    from azure.core.exceptions import ResourceNotFoundError
 except ImportError:
     # This is handled in azure_rm_common
     pass
@@ -160,7 +163,8 @@ class AzureRMDevTestLabInfo(AzureRMModuleBase):
                 type='str'
             ),
             tags=dict(
-                type='list'
+                type='list',
+                elements='str'
             )
         )
         # store the results of the module operation
@@ -171,7 +175,7 @@ class AzureRMDevTestLabInfo(AzureRMModuleBase):
         self.resource_group = None
         self.name = None
         self.tags = None
-        super(AzureRMDevTestLabInfo, self).__init__(self.module_arg_spec, supports_check_mode=True, supports_tags=False)
+        super(AzureRMDevTestLabInfo, self).__init__(self.module_arg_spec, supports_check_mode=True, supports_tags=False, facts_module=True)
 
     def exec_module(self, **kwargs):
         is_old_facts = self.module._name == 'azure_rm_devtestlab_facts'
@@ -181,6 +185,7 @@ class AzureRMDevTestLabInfo(AzureRMModuleBase):
         for key in self.module_arg_spec:
             setattr(self, key, kwargs[key])
         self.mgmt_client = self.get_mgmt_svc_client(DevTestLabsClient,
+                                                    is_track2=True,
                                                     base_url=self._cloud_environment.endpoints.resource_manager)
 
         if self.resource_group is not None:
@@ -198,7 +203,7 @@ class AzureRMDevTestLabInfo(AzureRMModuleBase):
         try:
             response = self.mgmt_client.labs.list_by_resource_group(resource_group_name=self.resource_group)
             self.log("Response : {0}".format(response))
-        except CloudError as e:
+        except Exception as e:
             self.log('Could not get facts for Lab.')
 
         if response is not None:
@@ -214,7 +219,7 @@ class AzureRMDevTestLabInfo(AzureRMModuleBase):
         try:
             response = self.mgmt_client.labs.list_by_subscription()
             self.log("Response : {0}".format(response))
-        except CloudError as e:
+        except Exception as e:
             self.log('Could not get facts for Lab.')
 
         if response is not None:
@@ -231,7 +236,7 @@ class AzureRMDevTestLabInfo(AzureRMModuleBase):
             response = self.mgmt_client.labs.get(resource_group_name=self.resource_group,
                                                  name=self.name)
             self.log("Response : {0}".format(response))
-        except CloudError as e:
+        except ResourceNotFoundError as e:
             self.log('Could not get facts for Lab.')
 
         if response and self.has_tags(response.tags, self.tags):

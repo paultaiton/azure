@@ -100,7 +100,6 @@ options:
 
 extends_documentation_fragment:
     - azure.azcollection.azure
-    - azure.azcollection.azure_tags
 
 author:
     - Yuwei Zhou (@yuwzho)
@@ -127,7 +126,6 @@ id:
 
 try:
     from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
-    from msrestazure.azure_exceptions import CloudError
 except ImportError:
     # This is handled in azure_rm_common
     pass
@@ -194,6 +192,7 @@ class AzureRMServiceSubscription(AzureRMModuleBase):
         )
 
         super(AzureRMServiceSubscription, self).__init__(self.module_arg_spec,
+                                                         supports_tags=False,
                                                          supports_check_mode=True)
 
     def exec_module(self, **kwargs):

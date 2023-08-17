@@ -91,6 +91,12 @@ vnetpeerings:
             returned: always
             type: str
             sample: Connected
+        peering_sync_level:
+            description:
+                - The Sync Level of the Peering
+            type: str
+            returned: always
+            sample: "FullyInSync"
         provisioning_state:
             description:
                 - The provisioning state of the resource.
@@ -124,8 +130,7 @@ vnetpeerings:
 '''
 
 try:
-    from msrestazure.azure_exceptions import CloudError
-    from msrest.polling import LROPoller
+    from azure.core.exceptions import ResourceNotFoundError
 except ImportError:
     # This is handled in azure_rm_common
     pass
@@ -149,7 +154,8 @@ def vnetpeering_to_dict(vnetpeering):
         use_remote_gateways=vnetpeering.use_remote_gateways,
         allow_gateway_transit=vnetpeering.allow_gateway_transit,
         allow_forwarded_traffic=vnetpeering.allow_forwarded_traffic,
-        allow_virtual_network_access=vnetpeering.allow_virtual_network_access
+        allow_virtual_network_access=vnetpeering.allow_virtual_network_access,
+        peering_sync_level=vnetpeering.peering_sync_level
     )
     return results
 
@@ -220,7 +226,7 @@ class AzureRMVirtualNetworkPeeringInfo(AzureRMModuleBase):
                                                                         virtual_network_peering_name=self.name)
             self.log("Response : {0}".format(response))
             results.append(vnetpeering_to_dict(response))
-        except CloudError:
+        except ResourceNotFoundError:
             self.log('Did not find the Virtual Network Peering.')
         return results
 
@@ -240,7 +246,7 @@ class AzureRMVirtualNetworkPeeringInfo(AzureRMModuleBase):
             if response:
                 for p in response:
                     results.append(vnetpeering_to_dict(p))
-        except CloudError:
+        except ResourceNotFoundError:
             self.log('Did not find the Virtual Network Peering.')
         return results
 

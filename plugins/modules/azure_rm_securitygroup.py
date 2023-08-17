@@ -83,6 +83,7 @@ options:
                     - Default tags such as C(VirtualNetwork), C(AzureLoadBalancer) and C(Internet) can also be used.
                     - If this is an ingress rule, specifies where network traffic originates from.
                     - It can accept string type or a list of string type.
+                    - Asterisk C(*) and default tags can only be specified as single string type, not as a list of string.
                 default: "*"
             destination_address_prefix:
                 description:
@@ -91,6 +92,7 @@ options:
                     - Asterisk C(*) can also be used to match all source IPs.
                     - Default tags such as C(VirtualNetwork), C(AzureLoadBalancer) and C(Internet) can also be used.
                     - It can accept string type or a list of string type.
+                    - Asterisk C(*) and default tags can only be specified as single string type, not as a list of string.
                 default: "*"
             source_application_security_groups:
                 description:
@@ -100,6 +102,7 @@ options:
                     - It could be list of dict containing resource_group and name.
                     - It is mutually exclusive with C(source_address_prefix) and C(source_address_prefixes).
                 type: list
+                elements: raw
             destination_application_security_groups:
                 description:
                     - List of the destination application security groups.
@@ -108,6 +111,7 @@ options:
                     - It could be list of dict containing I(resource_group) and I(name).
                     - It is mutually exclusive with C(destination_address_prefix) and C(destination_address_prefixes).
                 type: list
+                elements: raw
             access:
                 description:
                     - Whether or not to allow the traffic flow.
@@ -386,7 +390,7 @@ state:
                     "source_address_prefix": "174.109.158.0/24",
                     "source_port_range": "*"
                 }
-                ]
+            ]
         subnets:
             description:
                 - A collection of references to subnets.
@@ -412,7 +416,7 @@ state:
 '''  # NOQA
 
 try:
-    from msrestazure.azure_exceptions import CloudError
+    from azure.core.exceptions import ResourceNotFoundError
     from msrestazure.tools import is_valid_resource_id
     from azure.mgmt.network import NetworkManagementClient
 except ImportError:
@@ -459,7 +463,7 @@ def compare_rules_change(old_list, new_list, purge_list):
     changed = False
 
     for old_rule in old_list:
-        matched = next((x for x in new_list if x['name'] == old_rule['name']), [])
+        matched = next((x for x in new_list if x['name'].lower() == old_rule['name'].lower()), [])
         if matched:  # if the new one is in the old list, check whether it is updated
             changed = changed or compare_rules(old_rule, matched)
         elif not purge_list:  # keep this rule
@@ -468,8 +472,8 @@ def compare_rules_change(old_list, new_list, purge_list):
             changed = True
     # Compare new list and old list is the same? here only compare names
     if not changed:
-        new_names = [to_native(x['name']) for x in new_list]
-        old_names = [to_native(x['name']) for x in old_list]
+        new_names = [to_native(x['name'].lower()) for x in new_list]
+        old_names = [to_native(x['name'].lower()) for x in old_list]
         changed = (set(new_names) != set(old_names))
     return changed, new_list
 
@@ -478,11 +482,11 @@ def compare_rules(old_rule, rule):
     def compare_list_rule(old_rule, rule, key):
         return set(map(str, rule.get(key) or [])) != set(map(str, old_rule.get(key) or []))
     changed = False
-    if old_rule['name'] != rule['name']:
+    if old_rule['name'].lower() != rule['name'].lower():
         changed = True
     if rule.get('description', None) != old_rule['description']:
         changed = True
-    if rule['protocol'] != old_rule['protocol']:
+    if rule['protocol'].lower() != old_rule['protocol'].lower():
         changed = True
     if str(rule['source_port_range']) != str(old_rule['source_port_range']):
         changed = True
@@ -667,7 +671,7 @@ class AzureRMSecurityGroup(AzureRMModuleBase):
     def exec_module(self, **kwargs):
         # tighten up poll interval for security groups; default 30s is an eternity
         # this value is still overridden by the response Retry-After header (which is set on the initial operation response to 10s)
-        self.network_client.config.long_running_operation_timeout = 3
+        # self.network_client.config.long_running_operation_timeout = 3
         self.nsg_models = self.network_client.network_security_groups.models
 
         for key in list(self.module_arg_spec.keys()) + ['tags']:
@@ -708,7 +712,7 @@ class AzureRMSecurityGroup(AzureRMModuleBase):
             elif self.state == 'absent':
                 self.log("CHANGED: security group found but state is 'absent'")
                 changed = True
-        except CloudError:  # TODO: actually check for ResourceMissingError
+        except ResourceNotFoundError:  # TODO: actually check for ResourceMissingError
             if self.state == 'present':
                 self.log("CHANGED: security group not found and state is 'present'")
                 changed = True
@@ -786,19 +790,19 @@ class AzureRMSecurityGroup(AzureRMModuleBase):
         parameters.location = results.get('location')
 
         try:
-            poller = self.network_client.network_security_groups.create_or_update(resource_group_name=self.resource_group,
-                                                                                  network_security_group_name=self.name,
-                                                                                  parameters=parameters)
+            poller = self.network_client.network_security_groups.begin_create_or_update(resource_group_name=self.resource_group,
+                                                                                        network_security_group_name=self.name,
+                                                                                        parameters=parameters)
             result = self.get_poller_result(poller)
-        except CloudError as exc:
+        except Exception as exc:
             self.fail("Error creating/updating security group {0} - {1}".format(self.name, str(exc)))
         return create_network_security_group_dict(result)
 
     def delete(self):
         try:
-            poller = self.network_client.network_security_groups.delete(resource_group_name=self.resource_group, network_security_group_name=self.name)
+            poller = self.network_client.network_security_groups.begin_delete(resource_group_name=self.resource_group, network_security_group_name=self.name)
             result = self.get_poller_result(poller)
-        except CloudError as exc:
+        except Exception as exc:
             self.fail("Error deleting security group {0} - {1}".format(self.name, str(exc)))
 
         return result

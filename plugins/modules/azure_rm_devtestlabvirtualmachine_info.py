@@ -35,6 +35,7 @@ options:
         description:
             - Limit results by providing a list of tags. Format tags as 'key' or 'key:value'.
         type: list
+        elements: str
 
 extends_documentation_fragment:
     - azure.azcollection.azure
@@ -50,6 +51,8 @@ EXAMPLES = '''
       resource_group: myResourceGroup
       lab_name: myLab
       name: myVm
+      tags:
+        - key:value
 '''
 
 RETURN = '''
@@ -203,7 +206,7 @@ virtualmachines:
 from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
-    from msrestazure.azure_exceptions import CloudError
+    from azure.core.exceptions import ResourceNotFoundError
     from azure.mgmt.devtestlabs import DevTestLabsClient
     from msrest.serialization import Model
 except ImportError:
@@ -227,7 +230,8 @@ class AzureRMDtlVirtualMachineInfo(AzureRMModuleBase):
                 type='str'
             ),
             tags=dict(
-                type='list'
+                type='list',
+                elements='str'
             )
         )
         # store the results of the module operation
@@ -239,7 +243,7 @@ class AzureRMDtlVirtualMachineInfo(AzureRMModuleBase):
         self.lab_name = None
         self.name = None
         self.tags = None
-        super(AzureRMDtlVirtualMachineInfo, self).__init__(self.module_arg_spec, supports_check_mode=True, supports_tags=False)
+        super(AzureRMDtlVirtualMachineInfo, self).__init__(self.module_arg_spec, supports_check_mode=True, supports_tags=False, facts_module=True)
 
     def exec_module(self, **kwargs):
         is_old_facts = self.module._name == 'azure_rm_devtestlabvirtualmachine_facts'
@@ -250,6 +254,7 @@ class AzureRMDtlVirtualMachineInfo(AzureRMModuleBase):
         for key in self.module_arg_spec:
             setattr(self, key, kwargs[key])
         self.mgmt_client = self.get_mgmt_svc_client(DevTestLabsClient,
+                                                    is_track2=True,
                                                     base_url=self._cloud_environment.endpoints.resource_manager)
 
         if self.name:
@@ -267,7 +272,7 @@ class AzureRMDtlVirtualMachineInfo(AzureRMModuleBase):
                                                              lab_name=self.lab_name,
                                                              name=self.name)
             self.log("Response : {0}".format(response))
-        except CloudError as e:
+        except ResourceNotFoundError as e:
             self.fail('Could not get facts for Virtual Machine.')
 
         if response and self.has_tags(response.tags, self.tags):
@@ -282,7 +287,7 @@ class AzureRMDtlVirtualMachineInfo(AzureRMModuleBase):
             response = self.mgmt_client.virtual_machines.list(resource_group_name=self.resource_group,
                                                               lab_name=self.lab_name)
             self.log("Response : {0}".format(response))
-        except CloudError as e:
+        except Exception as e:
             self.fail('Could not get facts for Virtual Machine.')
 
         if response is not None:

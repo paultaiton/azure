@@ -35,6 +35,7 @@ options:
         description:
             - Limit results by providing a list of tags. Format tags as 'key' or 'key:value'.
         type: list
+        elements: str
 
 extends_documentation_fragment:
     - azure.azcollection.azure
@@ -114,7 +115,7 @@ custom_images:
 from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
-    from msrestazure.azure_exceptions import CloudError
+    from azure.core.exceptions import ResourceNotFoundError
     from azure.mgmt.devtestlabs import DevTestLabsClient
     from msrest.serialization import Model
 except ImportError:
@@ -139,7 +140,8 @@ class AzureRMDtlCustomImageInfo(AzureRMModuleBase):
                 required=True
             ),
             tags=dict(
-                type='list'
+                type='list',
+                elements='str'
             )
         )
         # store the results of the module operation
@@ -151,7 +153,7 @@ class AzureRMDtlCustomImageInfo(AzureRMModuleBase):
         self.lab_name = None
         self.name = None
         self.tags = None
-        super(AzureRMDtlCustomImageInfo, self).__init__(self.module_arg_spec, supports_check_mode=True, supports_tags=False)
+        super(AzureRMDtlCustomImageInfo, self).__init__(self.module_arg_spec, supports_check_mode=True, supports_tags=False, facts_module=True)
 
     def exec_module(self, **kwargs):
         is_old_facts = self.module._name == 'azure_rm_devtestlabcustomimage_facts'
@@ -162,6 +164,7 @@ class AzureRMDtlCustomImageInfo(AzureRMModuleBase):
         for key in self.module_arg_spec:
             setattr(self, key, kwargs[key])
         self.mgmt_client = self.get_mgmt_svc_client(DevTestLabsClient,
+                                                    is_track2=True,
                                                     base_url=self._cloud_environment.endpoints.resource_manager)
 
         if self.name:
@@ -178,7 +181,7 @@ class AzureRMDtlCustomImageInfo(AzureRMModuleBase):
                                                           lab_name=self.lab_name,
                                                           name=self.name)
             self.log("Response : {0}".format(response))
-        except CloudError as e:
+        except ResourceNotFoundError as e:
             self.log('Could not get facts for Custom Image.')
 
         if response and self.has_tags(response.tags, self.tags):
@@ -193,7 +196,7 @@ class AzureRMDtlCustomImageInfo(AzureRMModuleBase):
             response = self.mgmt_client.custom_images.list(resource_group_name=self.resource_group,
                                                            lab_name=self.lab_name)
             self.log("Response : {0}".format(response))
-        except CloudError as e:
+        except Exception as e:
             self.log('Could not get facts for Custom Image.')
 
         if response is not None:

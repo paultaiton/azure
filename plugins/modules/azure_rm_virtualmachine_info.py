@@ -31,6 +31,8 @@ options:
     tags:
         description:
             - Limit results by providing a list of tags. Format tags as 'key' or 'key:value'.
+        type: list
+        elements: str
 
 extends_documentation_fragment:
     - azure.azcollection.azure
@@ -136,6 +138,12 @@ vms:
                     returned: always
                     type: str
                     sample: Standard_LRS
+                managed_disk_id:
+                    description:
+                        - Managed data disk ID.
+                    returned: always
+                    type: str
+                    sample: /subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/myResourceGroup/Microsoft.Compute/disks/diskName
         id:
             description:
                 - Resource ID.
@@ -198,6 +206,12 @@ vms:
             sample: [
                 "myNetworkInterface"
             ]
+        proximityPlacementGroup:
+            description:
+                - The name or ID of the proximity placement group the VM should be associated with.
+            type: dict
+            returned: always
+            sample: { "id": "/subscriptions/xxx/resourceGroups/xxx/providers/Microsoft.Compute/proximityPlacementGroups/testid13"}
         os_disk_caching:
             description:
                 - Type of OS disk caching.
@@ -245,11 +259,61 @@ vms:
             returned: always
             type: str
             sample: running
+        display_status:
+            description:
+                - The short localizable label for the status.
+            returned: always
+            type: str
+            sample: "VM running"
+        provisioning_state:
+            description:
+                - The provisioning state, which only appears in the response.
+            returned: always
+            type: str
+            sample: running
+        security_profile:
+            description:
+                - Specifies the Security related profile settings for the virtual machine.
+            type: complex
+            returned: when-used
+            contains:
+                encryption_at_host:
+                    description:
+                        - This property can be used by user in the request to enable or disable the Host Encryption for the virtual machine.
+                        - This will enable the encryption for all the disks including Resource/Temp disk at host itself.
+                    type: bool
+                    returned: when-enabled
+                    sample: True
+                security_type:
+                    description:
+                        - Specifies the SecurityType of the virtual machine.
+                        - It is set as TrustedLaunch to enable UefiSettings.
+                    type: str
+                    returned: when-enabled
+                    sample: TrustedLaunch
+                uefi_settings:
+                    description:
+                        - Specifies the security settings like secure boot and vTPM used while creating the virtual machine.
+                    type: complex
+                    returned: when-enabled
+                    contains:
+                        secure_boot_enabled:
+                            description:
+                                - Specifies whether secure boot should be enabled on the virtual machine.
+                            type: bool
+                            returned: when-enabled
+                            sample: True
+                        v_tpm_enabled:
+                            description:
+                                - Specifies whether vTPM should be enabled on the virtual machine.
+                            type: bool
+                            returned: when-enabled
+                            sample: True
 '''
 
 try:
-    from msrestazure.azure_exceptions import CloudError
     from msrestazure.tools import parse_resource_id
+    from azure.core.exceptions import ResourceNotFoundError
 except Exception:
     # This is handled in azure_rm_common
     pass
@@ -271,7 +335,7 @@ class AzureRMVirtualMachineInfo(AzureRMModuleBase):
         self.module_arg_spec = dict(
             resource_group=dict(type='str'),
             name=dict(type='str'),
-            tags=dict(type='list')
+            tags=dict(type='list', elements='str')
         )
 
         self.results = dict(
@@ -323,7 +387,7 @@ class AzureRMVirtualMachineInfo(AzureRMModuleBase):
         self.log('List all items')
         try:
             items = self.compute_client.virtual_machines.list(self.resource_group)
-        except CloudError as exc:
+        except ResourceNotFoundError as exc:
             self.fail("Failed to list all items - {0}".format(str(exc)))
 
         results = []
@@ -336,7 +400,7 @@ class AzureRMVirtualMachineInfo(AzureRMModuleBase):
         self.log('List all items')
         try:
             items = self.compute_client.virtual_machines.list_all()
-        except CloudError as exc:
+        except ResourceNotFoundError as exc:
             self.fail("Failed to list all items - {0}".format(str(exc)))
 
         results = []
@@ -354,7 +418,7 @@ class AzureRMVirtualMachineInfo(AzureRMModuleBase):
         try:
             vm = self.compute_client.virtual_machines.get(resource_group, name, expand='instanceview')
             return self.serialize_vm(vm)
-        except Exception as exc:
+        except ResourceNotFoundError as exc:
             self.fail("Error getting virtual machine {0} - {1}".format(self.name, str(exc)))
 
     def serialize_vm(self, vm):
@@ -369,6 +433,7 @@ class AzureRMVirtualMachineInfo(AzureRMModuleBase):
         resource_group = parse_resource_id(result['id']).get('resource_group')
         instance = None
         power_state = None
+        display_status = None
 
         try:
             instance = self.compute_client.virtual_machines.instance_view(resource_group, vm.name)
@@ -380,18 +445,41 @@ class AzureRMVirtualMachineInfo(AzureRMModuleBase):
             code = instance['statuses'][index]['code'].split('/')
             if code[0] == 'PowerState':
                 power_state = code[1]
+                display_status = instance['statuses'][index]['displayStatus']
             elif code[0] == 'OSState' and code[1] == 'generalized':
+                display_status = instance['statuses'][index]['displayStatus']
                 power_state = 'generalized'
+                break
+            elif code[0] == 'ProvisioningState' and code[1] == 'failed':
+                display_status = instance['statuses'][index]['displayStatus']
+                power_state = ''
                 break
 
         new_result = {}
+
+        if vm.security_profile is not None:
+            new_result['security_profile'] = dict()
+            if vm.security_profile.encryption_at_host is not None:
+                new_result['security_profile']['encryption_at_host'] = vm.security_profile.encryption_at_host
+            if vm.security_profile.security_type is not None:
+                new_result['security_profile']['security_type'] = vm.security_profile.security_type
+            if vm.security_profile.uefi_settings is not None:
+                new_result['security_profile']['uefi_settings'] = dict()
+                if vm.security_profile.uefi_settings.secure_boot_enabled is not None:
+                    new_result['security_profile']['uefi_settings']['secure_boot_enabled'] = vm.security_profile.uefi_settings.secure_boot_enabled
+                if vm.security_profile.uefi_settings.v_tpm_enabled is not None:
+                    new_result['security_profile']['uefi_settings']['v_tpm_enabled'] = vm.security_profile.uefi_settings.v_tpm_enabled
+
         new_result['power_state'] = power_state
+        new_result['display_status'] = display_status
+        new_result['provisioning_state'] = vm.provisioning_state
         new_result['id'] = vm.id
         new_result['resource_group'] = resource_group
         new_result['name'] = vm.name
         new_result['state'] = 'present'
         new_result['location'] = vm.location
         new_result['vm_size'] = result['properties']['hardwareProfile']['vmSize']
+        new_result['proximityPlacementGroup'] = result['properties'].get('proximityPlacementGroup')
         new_result['zones'] = result.get('zones', None)
         os_profile = result['properties'].get('osProfile')
         if os_profile is not None:
@@ -439,6 +527,7 @@ class AzureRMVirtualMachineInfo(AzureRMModuleBase):
                 'name': disks[disk_index].get('name'),
                 'disk_size_gb': disks[disk_index].get('diskSizeGB'),
                 'managed_disk_type': disks[disk_index].get('managedDisk', {}).get('storageAccountType'),
+                'managed_disk_id': disks[disk_index].get('managedDisk', {}).get('id'),
                 'caching': disks[disk_index].get('caching')
             })
 

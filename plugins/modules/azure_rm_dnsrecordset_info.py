@@ -22,15 +22,19 @@ options:
     relative_name:
         description:
             - Only show results for a Record Set.
+        type: str
     resource_group:
         description:
             - Limit results by resource group. Required when filtering by name or type.
+        type: str
     zone_name:
         description:
             - Limit results by zones. Required when filtering by name or type.
+        type: str
     record_type:
         description:
             - Limit record sets by record type.
+        type: str
     top:
         description:
             - Limit the maximum number of record sets to return.
@@ -89,31 +93,36 @@ azure_dnsrecordset:
     }]
 dnsrecordsets:
     description:
-        - List of record set dicts, which shares the same hierarchy as M(azure_rm_dnsrecordset) module's parameter.
+        - List of record set dicts, which shares the same hierarchy as M(azure.azcollection.azure_rm_dnsrecordset) module's parameter.
     returned: always
-    type: list
+    type: complex
     contains:
         id:
             description:
                 - ID of the dns recordset.
+            type: str
             sample: "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/myResourceGroup/providers/Microsoft.Network/dnszones/newzone.
                      com/A/servera"
         relative_name:
             description:
                 - Name of the dns recordset.
+            type: str
             sample: servera
         record_type:
             description:
                 - The type of the record set.
                 - Can be C(A), C(AAAA), C(CNAME), C(MX), C(NS), C(SRV), C(TXT), C(PTR).
+            type: str
             sample: A
         time_to_live:
             description:
                 - Time to live of the record set in seconds.
+            type: int
             sample: 12900
         records:
             description:
                 - List of records depending on the type of recordset.
+            type: dict
             sample: [
                         {
                             "ipv4Address": "10.4.5.7"
@@ -125,18 +134,19 @@ dnsrecordsets:
         provisioning_state:
             description:
                 - Provision state of the resource.
+            type: str
             sample: Successed
         fqdn:
             description:
                 - Fully qualified domain name of the record set.
+            type: str
             sample: www.newzone.com
 '''
 
 from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
-    from msrestazure.azure_exceptions import CloudError
-    from azure.common import AzureMissingResourceHttpError, AzureHttpError
+    from azure.core.exceptions import ResourceNotFoundError
 except Exception:
     # This is handled in azure_rm_common
     pass
@@ -145,7 +155,7 @@ AZURE_OBJECT_CLASS = 'RecordSet'
 
 
 RECORDSET_VALUE_MAP = dict(
-    A='arecords',
+    A='a_records',
     AAAA='aaaa_records',
     CNAME='cname_record',
     MX='mx_records',
@@ -230,17 +240,18 @@ class AzureRMRecordSetInfo(AzureRMModuleBase):
         # try to get information for specific Record Set
         try:
             item = self.dns_client.record_sets.get(self.resource_group, self.zone_name, self.relative_name, self.record_type)
-        except CloudError:
+        except ResourceNotFoundError:
+            results = []
             pass
-
-        results = [item]
+        else:
+            results = [item]
         return results
 
     def list_type(self):
         self.log('Lists the record sets of a specified type in a DNS zone')
         try:
             response = self.dns_client.record_sets.list_by_type(self.resource_group, self.zone_name, self.record_type, top=self.top)
-        except AzureHttpError as exc:
+        except Exception as exc:
             self.fail("Failed to list for record type {0} - {1}".format(self.record_type, str(exc)))
 
         results = []
@@ -252,7 +263,7 @@ class AzureRMRecordSetInfo(AzureRMModuleBase):
         self.log('Lists all record sets in a DNS zone')
         try:
             response = self.dns_client.record_sets.list_by_dns_zone(self.resource_group, self.zone_name, top=self.top)
-        except AzureHttpError as exc:
+        except Exception as exc:
             self.fail("Failed to list for zone {0} - {1}".format(self.zone_name, str(exc)))
 
         results = []
@@ -281,7 +292,8 @@ class AzureRMRecordSetInfo(AzureRMModuleBase):
             records=[x.as_dict() for x in records],
             time_to_live=record.ttl,
             fqdn=record.fqdn,
-            provisioning_state=record.provisioning_state
+            provisioning_state=record.provisioning_state,
+            metadata=record.metadata
         )
 
 

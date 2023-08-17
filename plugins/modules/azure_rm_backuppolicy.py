@@ -86,15 +86,13 @@ options:
     schedule_weekly_frequency:
         description:
             - The amount of weeks between backups.
-            - Backup every schedule_weekly_frequency week(s)
-            - Azure will default behavior to running weekly if this is left blank
-            - Backup every schedule_weekly_frequency week(s).
+            - Backup every I(schedule_weekly_frequency) week(s).
             - Azure will default behavior to running weekly if this is left blank.
             - Does not apply to Daily frequency.
         type: int
     time_zone:
         description:
-            - Timezone to apply schedule_run_time.
+            - Timezone to apply I(schedule_run_time).
         default: UTC
         type: str
 extends_documentation_fragment:
@@ -176,7 +174,7 @@ from datetime import datetime
 from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
 
 try:
-    from msrestazure.azure_exceptions import CloudError
+    from azure.core.exceptions import ResourceNotFoundError
 
 except ImportError:
     # This is handled in azure_rm_common
@@ -358,7 +356,7 @@ class AzureRMBackupPolicy(AzureRMModuleBase):
                 daily_retention_schedule = self.recovery_services_backup_models.DailyRetentionSchedule(retention_times=schedule_run_times_as_datetimes,
                                                                                                        retention_duration=retention_duration)
 
-            if(self.weekly_retention_count):
+            if (self.weekly_retention_count):
                 retention_duration = self.recovery_services_backup_models.RetentionDuration(count=self.weekly_retention_count,
                                                                                             duration_type="Weeks")
                 weekly_retention_schedule = self.recovery_services_backup_models.WeeklyRetentionSchedule(days_of_the_week=self.schedule_days,
@@ -386,7 +384,7 @@ class AzureRMBackupPolicy(AzureRMModuleBase):
                                                                                                      policy_name=self.name,
                                                                                                      parameters=policy_resource)
 
-        except CloudError as e:
+        except Exception as e:
             self.log('Error attempting to create the backup policy.')
             self.fail("Error creating the backup policy {0} for vault {1} in resource group {2}. Error Reads: {3}".format(self.name,
                                                                                                                           self.vault_name,
@@ -405,11 +403,11 @@ class AzureRMBackupPolicy(AzureRMModuleBase):
         response = None
 
         try:
-            response = self.recovery_services_backup_client.protection_policies.delete(vault_name=self.vault_name,
-                                                                                       resource_group_name=self.resource_group,
-                                                                                       policy_name=self.name)
+            response = self.recovery_services_backup_client.protection_policies.begin_delete(vault_name=self.vault_name,
+                                                                                             resource_group_name=self.resource_group,
+                                                                                             policy_name=self.name)
 
-        except CloudError as e:
+        except Exception as e:
             self.log('Error attempting to delete the backup policy.')
             self.fail("Error deleting the backup policy {0} for vault {1} in resource group {2}. Error Reads: {3}".format(self.name,
                                                                                                                           self.vault_name,
@@ -433,7 +431,7 @@ class AzureRMBackupPolicy(AzureRMModuleBase):
             policy = self.recovery_services_backup_client.protection_policies.get(vault_name=self.vault_name,
                                                                                   resource_group_name=self.resource_group,
                                                                                   policy_name=self.name)
-        except CloudError as ex:
+        except ResourceNotFoundError as ex:
             self.log("Could not find backup policy {0} for vault {1} in resource group {2}".format(self.name, self.vault_name, self.resource_group))
 
         return policy

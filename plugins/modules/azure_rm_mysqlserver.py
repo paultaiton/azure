@@ -87,8 +87,8 @@ options:
             - Server version.
         type: str
         choices:
-            - 5.7
-            - 8.0
+            - '5.7'
+            - '8.0'
     enforce_ssl:
         description:
             - Enable SSL enforcement.
@@ -108,6 +108,11 @@ options:
             - Create mode of SQL Server.
         default: Default
         type: str
+    restarted:
+        description:
+            - Set to C(true) with I(state=present) to restart a running mysql server.
+        default: False
+        type: bool
     state:
         description:
             - Assert the state of the MySQL Server. Use C(present) to create or update a server and C(absent) to delete it.
@@ -177,9 +182,8 @@ import time
 
 try:
     from ansible_collections.azure.azcollection.plugins.module_utils.azure_rm_common import AzureRMModuleBase
-    from azure.mgmt.rdbms.mysql import MySQLManagementClient
-    from msrestazure.azure_exceptions import CloudError
-    from msrest.polling import LROPoller
+    from azure.core.exceptions import ResourceNotFoundError
+    from azure.core.polling import LROPoller
     from msrest.serialization import Model
 except ImportError:
     # This is handled in azure_rm_common
@@ -245,6 +249,10 @@ class AzureRMMySqlServers(AzureRMModuleBase):
             admin_username=dict(
                 type='str'
             ),
+            restarted=dict(
+                type='bool',
+                default=False
+            ),
             admin_password=dict(
                 type='str',
                 no_log=True
@@ -260,6 +268,7 @@ class AzureRMMySqlServers(AzureRMModuleBase):
         self.name = None
         self.parameters = dict()
         self.tags = None
+        self.restarted = False
 
         self.results = dict(changed=False)
         self.state = None
@@ -311,11 +320,20 @@ class AzureRMMySqlServers(AzureRMModuleBase):
 
         if not old_response:
             self.log("MySQL Server instance doesn't exist")
+            if self.restarted:
+                self.fail("Mysql server instance doesn't exist, can't be restart")
+
             if self.state == 'absent':
                 self.log("Old instance didn't exist")
             else:
                 self.to_do = Actions.Create
         else:
+            if self.restarted:
+                self.restart_mysqlserver()
+                self.results['changed'] = True
+                self.results['state'] = old_response
+                return self.results
+
             self.log("MySQL Server instance already exists")
             if self.state == 'absent':
                 self.to_do = Actions.Delete
@@ -365,6 +383,18 @@ class AzureRMMySqlServers(AzureRMModuleBase):
 
         return self.results
 
+    def restart_mysqlserver(self):
+        '''
+        Restart MySQL Server.
+        '''
+        self.log("Restart MySQL Server instance {0}".format(self.name))
+
+        try:
+            response = self.mysql_client.servers.begin_restart(resource_group_name=self.resource_group, server_name=self.name)
+        except Exception as exc:
+            self.fail("Error restarting mysql server {0} - {1}".format(self.name, str(exc)))
+        return True
+
     def create_update_mysqlserver(self):
         '''
         Creates or updates MySQL Server with the specified configuration.
@@ -376,19 +406,19 @@ class AzureRMMySqlServers(AzureRMModuleBase):
         try:
             self.parameters['tags'] = self.tags
             if self.to_do == Actions.Create:
-                response = self.mysql_client.servers.create(resource_group_name=self.resource_group,
-                                                            server_name=self.name,
-                                                            parameters=self.parameters)
+                response = self.mysql_client.servers.begin_create(resource_group_name=self.resource_group,
+                                                                  server_name=self.name,
+                                                                  parameters=self.parameters)
             else:
                 # structure of parameters for update must be changed
                 self.parameters.update(self.parameters.pop("properties", {}))
-                response = self.mysql_client.servers.update(resource_group_name=self.resource_group,
-                                                            server_name=self.name,
-                                                            parameters=self.parameters)
+                response = self.mysql_client.servers.begin_update(resource_group_name=self.resource_group,
+                                                                  server_name=self.name,
+                                                                  parameters=self.parameters)
             if isinstance(response, LROPoller):
                 response = self.get_poller_result(response)
 
-        except CloudError as exc:
+        except Exception as exc:
             self.log('Error attempting to create the MySQL Server instance.')
             self.fail("Error creating the MySQL Server instance: {0}".format(str(exc)))
         return response.as_dict()
@@ -401,9 +431,9 @@ class AzureRMMySqlServers(AzureRMModuleBase):
         '''
         self.log("Deleting the MySQL Server instance {0}".format(self.name))
         try:
-            response = self.mysql_client.servers.delete(resource_group_name=self.resource_group,
-                                                        server_name=self.name)
-        except CloudError as e:
+            response = self.mysql_client.servers.begin_delete(resource_group_name=self.resource_group,
+                                                              server_name=self.name)
+        except Exception as e:
             self.log('Error attempting to delete the MySQL Server instance.')
             self.fail("Error deleting the MySQL Server instance: {0}".format(str(e)))
 
@@ -423,7 +453,7 @@ class AzureRMMySqlServers(AzureRMModuleBase):
             found = True
             self.log("Response : {0}".format(response))
             self.log("MySQL Server instance : {0} found".format(response.name))
-        except CloudError as e:
+        except ResourceNotFoundError as e:
             self.log('Did not find the MySQL Server instance.')
         if found is True:
             return response.as_dict()
